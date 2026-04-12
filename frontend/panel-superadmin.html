@@ -1,0 +1,1056 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Super Admin — Sistema de Laboratorio</title>
+    <link rel="stylesheet" href="assets/css/main.css">
+    <style>
+        .sa-badge { background:#7c3aed;color:white;font-size:.65rem;font-weight:700;padding:2px 8px;border-radius:20px;text-transform:uppercase;letter-spacing:.05em; }
+        .danger-zone { border:1.5px solid #fca5a5;border-radius:var(--radio-lg);padding:20px;background:#fff5f5; }
+        .danger-zone-title { color:#b91c1c;font-weight:700;font-size:.9rem;margin-bottom:12px;display:flex;align-items:center;gap:6px; }
+        .danger-zone-title svg { width:16px;height:16px; }
+        .stat-card-sa { background:white;border:1px solid var(--gris-b);border-radius:var(--radio-lg);padding:16px 18px;box-shadow:var(--sombra-sm); }
+        .stat-card-sa .stat-label { font-size:.72rem;color:var(--gris-t);text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px; }
+        .stat-card-sa .stat-val   { font-size:1.8rem;font-weight:700;line-height:1; }
+        .stat-card-sa .stat-sub   { font-size:.72rem;color:var(--gris-t);margin-top:3px; }
+        .config-row { display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid #f1f5f9; }
+        .config-row:last-child { border-bottom:none; }
+        .config-label { font-size:.85rem;font-weight:600;min-width:220px; }
+        .config-input { flex:1;padding:7px 10px;border:1.5px solid var(--gris-b);border-radius:var(--radio);font-size:.88rem;font-family:inherit;background:white; }
+        .config-input:focus { outline:none;border-color:var(--azul-c);box-shadow:0 0 0 3px rgba(59,130,246,.1); }
+        .stats-sa-grid { display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin-bottom:20px; }
+        .chart-bar-wrap { margin-top:10px; }
+        .chart-bar-row { display:flex;align-items:center;gap:8px;margin-bottom:6px;font-size:.8rem; }
+        .chart-bar-label { min-width:100px;color:var(--gris-t);white-space:nowrap;overflow:hidden;text-overflow:ellipsis; }
+        .chart-bar-bg { flex:1;background:#f1f5f9;border-radius:4px;height:10px; }
+        .chart-bar-fill { height:10px;border-radius:4px;background:var(--azul-c);transition:width .4s; }
+        .chart-bar-val { min-width:28px;text-align:right;font-weight:600; }
+        .role-dot-sa { width:8px;height:8px;border-radius:50%;display:inline-block;margin-right:5px; }
+
+        /* ── Panel consola deslizable ── */
+        #consolaPanel {
+            position:fixed; bottom:0; left:0; right:0; z-index:1000;
+            background:#0f172a; color:#e2e8f0;
+            border-top:2px solid #7c3aed;
+            transform:translateY(100%);
+            transition:transform .3s cubic-bezier(.4,0,.2,1);
+            display:flex; flex-direction:column;
+            max-height:55vh; font-family:'Courier New',monospace;
+        }
+        #consolaPanel.abierto { transform:translateY(0); }
+        #consolaPanel .consola-header {
+            display:flex; align-items:center; justify-content:space-between;
+            padding:8px 16px; background:#1e1b4b; flex-shrink:0; cursor:pointer;
+            user-select:none;
+        }
+        #consolaPanel .consola-header-left {
+            display:flex; align-items:center; gap:10px;
+        }
+        #consolaPanel .consola-titulo {
+            font-size:.82rem; font-weight:700; color:#a78bfa; letter-spacing:.05em;
+            text-transform:uppercase;
+        }
+        #consolaPanel .consola-badge {
+            font-size:.68rem; background:#7c3aed; color:white;
+            padding:1px 7px; border-radius:9px;
+        }
+        #consolaPanel .consola-cmds {
+            display:flex; gap:6px; padding:8px 16px; flex-wrap:wrap;
+            background:#1e293b; flex-shrink:0; overflow-x:auto;
+            border-bottom:1px solid #334155;
+        }
+        #consolaPanel .consola-grupo {
+            display:flex; align-items:center; gap:6px; flex-wrap:wrap;
+        }
+        #consolaPanel .consola-grupo-label {
+            font-size:.68rem; color:#64748b; text-transform:uppercase;
+            letter-spacing:.05em; white-space:nowrap;
+        }
+        #consolaPanel .cmd-btn {
+            font-size:.73rem; padding:4px 10px; border-radius:6px; cursor:pointer;
+            border:1px solid #334155; background:#0f172a; color:#94a3b8;
+            font-family:inherit; transition:all .15s; white-space:nowrap;
+        }
+        #consolaPanel .cmd-btn:hover { background:#1e293b; color:#e2e8f0; border-color:#7c3aed; }
+        #consolaPanel .cmd-btn:disabled { opacity:.4; cursor:not-allowed; }
+        #consolaPanel .consola-output {
+            flex:1; overflow-y:auto; padding:12px 16px;
+            font-size:.78rem; line-height:1.6; white-space:pre-wrap;
+            word-break:break-all;
+        }
+        #consolaPanel .consola-output .out-ok    { color:#4ade80; }
+        #consolaPanel .consola-output .out-error  { color:#f87171; }
+        #consolaPanel .consola-output .out-prompt { color:#a78bfa; font-weight:700; }
+        #consolaPanel .consola-output .out-info   { color:#60a5fa; }
+        #consolaPanel .consola-separator { height:1px; background:#334155; margin:6px 0; }
+        #consolaBtnFlotante { display:none; } /* eliminado — consola en sidebar */
+    </style>
+</head>
+<body>
+<div class="app-shell">
+
+<!-- SIDEBAR -->
+<aside class="sidebar" style="background:linear-gradient(180deg,#1e0a3c 0%,#0a1e3d 100%)">
+    <div class="sb-logo">
+        <img src="https://udemm.edu.ar/wp-content/uploads/2024/01/Udemm-Logo.webp"
+             alt="UdeMM" class="sb-logo-img" onerror="this.style.display='none'">
+        <div class="sb-logo-label">Super Administrador</div>
+    </div>
+    <div class="sb-user">
+        <div class="sb-avatar" id="sbAvatar" style="background:#7c3aed">SA</div>
+        <div style="min-width:0">
+            <div class="sb-uname" id="sbNombre">Super Admin</div>
+            <div style="display:flex;align-items:center;gap:4px;margin-top:2px">
+                <span class="sa-badge">Super Admin</span>
+            </div>
+        </div>
+    </div>
+    <nav class="sb-nav">
+        <div class="sb-section">Panel</div>
+        <button class="sb-item active" data-sec="stats" onclick="ir('stats',this)">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+            Estadísticas
+        </button>
+        <div class="sb-section">Administración</div>
+        <button class="sb-item" data-sec="tecnicos" onclick="ir('tecnicos',this)">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+            Técnicos y Admins
+        </button>
+        <button class="sb-item" data-sec="config" onclick="ir('config',this)">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/></svg>
+            Configuración
+        </button>
+        <div class="sb-section">Sistema</div>
+        <button class="sb-item" data-sec="diagnostico" onclick="ir('diagnostico',this)">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+            Diagnóstico
+        </button>
+        <button class="sb-item" data-sec="bd" onclick="ir('bd',this)">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg>
+            Base de datos
+        </button>
+        <button class="sb-item" data-sec="logs" onclick="ir('logs',this)">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+            Logs del sistema
+        </button>
+        <div class="sb-section">Gestión general</div>
+        <button class="sb-item" onclick="window.location.href='panel-tecnico.html'">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
+            Panel Técnico
+        </button>
+        <div style="height:1px;background:rgba(255,255,255,.08);margin:8px 0"></div>
+        <button class="sb-item" id="sbConsola" onclick="toggleConsola()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
+            Consola SSH
+        </button>
+    </nav>
+    <div class="sb-footer">
+        <button class="sb-logout" onclick="API.logout()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+            Cerrar sesión
+        </button>
+    </div>
+</aside>
+
+<!-- CONTENIDO -->
+<div class="main-content">
+<div id="alerta" style="display:none;margin:14px 28px 0"></div>
+
+<!-- ══ ESTADÍSTICAS ══ -->
+<div id="sec-stats" class="sec active">
+    <div class="sec-header">
+        <div class="sec-header-left"><h2>Estadísticas del Sistema</h2><p>Vista completa del uso y estado de la plataforma</p></div>
+        <button class="btn btn-secondary btn-sm" onclick="cargarStats()">↻ Actualizar</button>
+    </div>
+    <div class="sec-body">
+        <div class="stats-sa-grid" id="saStatsGrid"><div class="stat-card-sa"><div class="stat-label">Cargando...</div></div></div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+            <div class="card card-body">
+                <div style="font-size:.9rem;font-weight:700;color:var(--azul);margin-bottom:14px">Accesos últimos 14 días</div>
+                <div id="chartAccesos"><div class="empty-state" style="padding:16px"><p>Cargando...</p></div></div>
+            </div>
+            <div class="card card-body">
+                <div style="font-size:.9rem;font-weight:700;color:var(--azul);margin-bottom:14px">Prácticas más utilizadas</div>
+                <div id="chartPracticas"><div class="empty-state" style="padding:16px"><p>Cargando...</p></div></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ══ TÉCNICOS ══ -->
+<div id="sec-tecnicos" class="sec">
+    <div class="sec-header">
+        <div class="sec-header-left"><h2>Técnicos y Administradores</h2><p>Usuarios con acceso al panel de administración</p></div>
+        <button class="btn btn-primary btn-sm" onclick="abrirModalTec()">+ Nuevo</button>
+    </div>
+    <div class="sec-body">
+        <div class="card"><div id="tablaTec" style="padding:4px 0"></div></div>
+    </div>
+</div>
+
+<!-- ══ CONFIGURACIÓN ══ -->
+<div id="sec-config" class="sec">
+    <div class="sec-header">
+        <div class="sec-header-left"><h2>Configuración del Sistema</h2><p>Parámetros generales de la plataforma</p></div>
+        <button class="btn btn-primary btn-sm" onclick="guardarConfig()">💾 Guardar cambios</button>
+    </div>
+    <div class="sec-body">
+        <div id="alertaConfig" style="display:none;margin-bottom:14px"></div>
+        <div class="card card-body" id="configForm">
+            <div class="empty-state"><p>Cargando configuración...</p></div>
+        </div>
+    </div>
+</div>
+
+<!-- ══ BASE DE DATOS ══ -->
+<div id="sec-bd" class="sec">
+    <div class="sec-header">
+        <div class="sec-header-left"><h2>Base de Datos</h2><p>Backup y mantenimiento de la base de datos</p></div>
+    </div>
+    <div class="sec-body" style="display:flex;flex-direction:column;gap:16px">
+
+        <div class="card card-body">
+            <div style="font-size:.9rem;font-weight:700;color:var(--azul);margin-bottom:6px">Información</div>
+            <div id="bdInfo" style="font-size:.85rem;color:var(--gris-t)">Cargando...</div>
+        </div>
+
+        <div class="card card-body">
+            <div style="font-size:.9rem;font-weight:700;color:var(--azul);margin-bottom:8px">Backup</div>
+            <p style="font-size:.84rem;color:var(--gris-t);margin-bottom:14px">Descargá una copia de seguridad completa de la base de datos.</p>
+            <a id="btnBackup" class="btn btn-primary" style="display:inline-flex;text-decoration:none;width:fit-content">
+                ⬇ Descargar backup
+            </a>
+        </div>
+
+        <div class="danger-zone">
+            <div class="danger-zone-title">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                Zona de peligro — estas acciones no se pueden deshacer
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px">
+                <div style="background:white;border-radius:var(--radio);padding:14px;border:1px solid #fca5a5">
+                    <div style="font-size:.82rem;font-weight:600;margin-bottom:6px">Vaciar dispositivos</div>
+                    <div style="font-size:.76rem;color:var(--gris-t);margin-bottom:10px">Desactiva todos los ESP32 registrados</div>
+                    <button class="btn btn-danger btn-sm" onclick="vaciarTabla('dispositivos')">Vaciar</button>
+                </div>
+                <div style="background:white;border-radius:var(--radio);padding:14px;border:1px solid #fca5a5">
+                    <div style="font-size:.82rem;font-weight:600;margin-bottom:6px">Vaciar prácticas</div>
+                    <div style="font-size:.76rem;color:var(--gris-t);margin-bottom:10px">Desactiva todas las prácticas</div>
+                    <button class="btn btn-danger btn-sm" onclick="vaciarTabla('practicas')">Vaciar</button>
+                </div>
+                <div style="background:white;border-radius:var(--radio);padding:14px;border:1px solid #fca5a5">
+                    <div style="font-size:.82rem;font-weight:600;margin-bottom:6px">Vaciar logs</div>
+                    <div style="font-size:.76rem;color:var(--gris-t);margin-bottom:10px">Borra todo el historial de actividad</div>
+                    <button class="btn btn-danger btn-sm" onclick="vaciarTabla('logs')">Vaciar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ══ LOGS ══ -->
+<div id="sec-logs" class="sec">
+    <div class="sec-header">
+        <div class="sec-header-left"><h2>Logs del Sistema</h2><p>Historial completo de actividad</p></div>
+        <div class="sec-header-actions">
+            <button class="btn btn-secondary btn-sm" onclick="cargarLogs()">↻ Actualizar</button>
+            <button class="btn btn-danger btn-sm" onclick="limpiarLogs(30)">🗑 Limpiar +30 días</button>
+            <button class="btn btn-danger btn-sm" onclick="limpiarLogs(0)">🗑 Limpiar todo</button>
+        </div>
+    </div>
+    <div class="sec-body">
+        <div class="card"><div id="tablaLogs" style="padding:4px 0"></div></div>
+    </div>
+</div>
+
+<!-- ══ DIAGNÓSTICO ══ -->
+<div id="sec-diagnostico" class="sec">
+    <div class="sec-header">
+        <div class="sec-header-left"><h2>Diagnóstico del Sistema</h2><p>Herramientas para verificar y corregir la conectividad con los ESP32</p></div>
+        <div class="sec-header-actions">
+            <button class="btn btn-secondary btn-sm" onclick="cargarDiag()">↻ Actualizar</button>
+            <button class="btn btn-primary btn-sm" onclick="pingTodosDisp()">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+                Forzar ping a todos
+            </button>
+        </div>
+    </div>
+    <div class="sec-body" style="display:flex;flex-direction:column;gap:14px">
+
+        <!-- Estado del servidor -->
+        <div class="card card-body">
+            <div style="font-size:.88rem;font-weight:700;color:var(--azul);margin-bottom:12px;display:flex;align-items:center;gap:7px">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><rect x="2" y="2" width="20" height="8" rx="2"/><rect x="2" y="14" width="20" height="8" rx="2"/><line x1="6" y1="6" x2="6.01" y2="6"/><line x1="6" y1="18" x2="6.01" y2="18"/></svg>
+                Estado del servidor
+            </div>
+            <div id="diagServidor" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px">
+                <div style="font-size:.84rem;color:var(--gris-t)">Cargando...</div>
+            </div>
+        </div>
+
+        <!-- Dispositivos -->
+        <div class="card card-body">
+            <div style="font-size:.88rem;font-weight:700;color:var(--azul);margin-bottom:12px;display:flex;align-items:center;gap:7px">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
+                Estado de dispositivos ESP32
+            </div>
+            <div id="diagDispositivos">
+                <div style="font-size:.84rem;color:var(--gris-t)">Cargando...</div>
+            </div>
+        </div>
+
+        <!-- Herramientas rápidas -->
+        <div class="card card-body">
+            <div style="font-size:.88rem;font-weight:700;color:var(--azul);margin-bottom:12px">
+                🔧 Herramientas rápidas
+            </div>
+            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px">
+                <div style="background:var(--gris-bg);border-radius:var(--radio);padding:14px">
+                    <div style="font-size:.8rem;font-weight:600;margin-bottom:6px">Cambiar IP de un dispositivo</div>
+                    <div style="font-size:.75rem;color:var(--gris-t);margin-bottom:10px">Sin eliminar ni perder el historial</div>
+                    <select id="diagDispSel" class="field-select" style="margin-bottom:8px"></select>
+                    <input type="text" id="diagNuevaIP" class="field-input" placeholder="Nueva IP (ej: 192.168.1.55)" style="margin-bottom:8px">
+                    <button class="btn btn-primary btn-sm" style="width:100%" onclick="cambiarIPDisp()">Aplicar nueva IP</button>
+                </div>
+                <div style="background:var(--gris-bg);border-radius:var(--radio);padding:14px">
+                    <div style="font-size:.8rem;font-weight:600;margin-bottom:6px">Forzar estado de un dispositivo</div>
+                    <div style="font-size:.75rem;color:var(--gris-t);margin-bottom:10px">Marcar manualmente online u offline</div>
+                    <select id="diagDispSel2" class="field-select" style="margin-bottom:8px"></select>
+                    <div style="display:flex;gap:6px">
+                        <button class="btn btn-sm" style="flex:1;background:#dcfce7;color:#15803d;border:1px solid #bbf7d0" onclick="forzarEstado(true)">● Forzar Online</button>
+                        <button class="btn btn-sm" style="flex:1;background:#f1f5f9;color:var(--gris-t);border:1px solid var(--gris-b)" onclick="forzarEstado(false)">● Forzar Offline</button>
+                    </div>
+                </div>
+                <div style="background:var(--gris-bg);border-radius:var(--radio);padding:14px">
+                    <div style="font-size:.8rem;font-weight:600;margin-bottom:6px">Test completo de un ESP32</div>
+                    <div style="font-size:.75rem;color:var(--gris-t);margin-bottom:10px">Verifica conexión HTTP, HTML y recursos</div>
+                    <select id="diagDispSel3" class="field-select" style="margin-bottom:8px"></select>
+                    <button class="btn btn-primary btn-sm" style="width:100%" onclick="testESP32()">▶ Ejecutar test</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Resultado de operaciones -->
+        <div id="diagResultado" style="display:none"></div>
+
+    </div>
+</div>
+
+</div><!-- /main-content -->
+</div><!-- /app-shell -->
+
+<!-- MODAL TÉCNICO -->
+<div class="modal-overlay" id="modalTec">
+    <div class="modal-box">
+        <div class="modal-title" id="modalTecTitle">Nuevo Técnico / Admin</div>
+        <input type="hidden" id="tecId">
+        <div class="field-group"><label class="field-label">Nombre *</label><input type="text" id="tecNombre" class="field-input" placeholder="Nombre completo"></div>
+        <div class="field-group"><label class="field-label">Email *</label><input type="email" id="tecEmail" class="field-input" placeholder="email@lab.edu"></div>
+        <div class="field-group" id="tecPassField"><label class="field-label">Contraseña *</label><input type="password" id="tecPass" class="field-input" placeholder="Mínimo 6 caracteres"></div>
+        <div class="field-group"><label class="field-label">Rol *</label>
+            <select id="tecRol" class="field-select">
+                <option value="tecnico">Técnico</option>
+                <option value="superadmin">Super Administrador</option>
+            </select>
+        </div>
+        <div class="modal-actions">
+            <button class="btn btn-secondary btn-sm" onclick="API.cerrarModal('modalTec')">Cancelar</button>
+            <button class="btn btn-primary btn-sm" onclick="guardarTec()">💾 Guardar</button>
+        </div>
+    </div>
+</div>
+
+<script src="assets/js/api.js"></script>
+<script>
+const usuario = API.requireAuth('superadmin');
+if (usuario) {
+    document.getElementById('sbNombre').textContent = usuario.nombre;
+    document.getElementById('sbAvatar').textContent = usuario.nombre.split(' ').map(p=>p[0]).slice(0,2).join('').toUpperCase();
+}
+
+function ir(sec, btn) {
+    document.querySelectorAll('.sec').forEach(s=>s.classList.remove('active'));
+    document.querySelectorAll('.sb-item').forEach(b=>b.classList.remove('active'));
+    document.getElementById('sec-'+sec).classList.add('active');
+    btn.classList.add('active');
+    const fn={stats:cargarStats,tecnicos:cargarTecs,config:cargarConfig,bd:cargarBD,logs:cargarLogs,diagnostico:cargarDiag};
+    if(fn[sec]) fn[sec]();
+    typeof Ayuda !== "undefined" && Ayuda.actualizar('superadmin', sec);
+}
+
+function alerta(tipo,msg,elId='alerta'){
+    const el=document.getElementById(elId);
+    el.className=`alert alert-${tipo==='ok'?'success':tipo==='error'?'error':tipo}`;
+    el.innerHTML=msg; el.style.display='flex';
+    if(tipo==='ok'||tipo==='success') setTimeout(()=>el.style.display='none',3000);
+}
+
+// ══ DIAGNÓSTICO ════════════════════════════════════════════════
+let _diagDisps = [];
+
+async function cargarDiag() {
+    try {
+        const d = await API.sa.diag.estado();
+
+        // Estado del servidor
+        document.getElementById('diagServidor').innerHTML = `
+            <div class="stat-card-sa"><div class="stat-label">Uptime</div><div class="stat-val stat-blue" style="font-size:1.2rem">${d.servidor.uptime_txt}</div></div>
+            <div class="stat-card-sa"><div class="stat-label">Memoria usada</div><div class="stat-val stat-blue" style="font-size:1.2rem">${d.servidor.memoria_mb} MB</div></div>
+            <div class="stat-card-sa"><div class="stat-label">Node.js</div><div class="stat-val stat-blue" style="font-size:1.2rem">${d.servidor.node_version}</div></div>
+            <div class="stat-card-sa"><div class="stat-label">Base de datos</div><div class="stat-val stat-blue" style="font-size:1.2rem">${d.db_size_kb} KB</div></div>
+            <div class="stat-card-sa"><div class="stat-label">Último update</div><div class="stat-val stat-blue" style="font-size:.85rem;margin-top:4px">${new Date(d.servidor.timestamp).toLocaleTimeString('es-AR')}</div></div>
+        `;
+
+        // Tabla de dispositivos
+        _diagDisps = d.dispositivos;
+        if (!_diagDisps.length) {
+            document.getElementById('diagDispositivos').innerHTML = emptyState('No hay dispositivos activos.');
+        } else {
+            document.getElementById('diagDispositivos').innerHTML = `
+                <table class="table">
+                    <thead><tr><th>Nombre</th><th>IP</th><th>Estado</th><th>Último ping</th><th>Acciones</th></tr></thead>
+                    <tbody>
+                    ${_diagDisps.map(d=>`<tr>
+                        <td><strong>${d.nombre}</strong></td>
+                        <td><code>${d.ip}</code></td>
+                        <td><span class="badge ${d.online?'badge-online':'badge-offline'}">${d.online?'● Online':'● Offline'}</span></td>
+                        <td style="font-size:.78rem;color:var(--gris-t)">${d.ultimo_ping ? new Date(d.ultimo_ping).toLocaleString('es-AR') : 'Nunca'}</td>
+                        <td style="display:flex;gap:4px;flex-wrap:wrap">
+                            <button class="btn btn-secondary btn-sm" onclick="pingUno(${d.id},'${d.nombre}')">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+                                Ping
+                            </button>
+                            <button class="btn btn-sm" style="background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe" onclick="testUno(${d.id},'${d.nombre}')">
+                                ▶ Test
+                            </button>
+                        </td>
+                    </tr>`).join('')}
+                    </tbody>
+                </table>`;
+        }
+
+        // Poblar selects de herramientas rápidas
+        ['diagDispSel','diagDispSel2','diagDispSel3'].forEach(selId => {
+            const sel = document.getElementById(selId);
+            sel.innerHTML = _diagDisps.map(d=>`<option value="${d.id}">${d.nombre} (${d.ip})</option>`).join('');
+        });
+
+    } catch(e) { alerta('error', e.message); }
+}
+
+async function pingTodosDisp() {
+    mostrarResultado('info', '⏳ Haciendo ping a todos los dispositivos...');
+    try {
+        const r = await API.sa.diag.pingTodos();
+        const html = r.resultados.map(d => `
+            <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid #f1f5f9;font-size:.85rem">
+                <div><strong>${d.nombre}</strong> <code style="font-size:.78rem">${d.ip}</code></div>
+                <div style="display:flex;align-items:center;gap:10px">
+                    <span style="color:var(--gris-t);font-size:.78rem">${d.ms}ms</span>
+                    <span class="badge ${d.online?'badge-online':'badge-offline'}">${d.online?'● Online':'● Offline'}</span>
+                    ${!d.online ? `<span style="font-size:.75rem;color:var(--rojo)">${d.error||''}</span>` : ''}
+                </div>
+            </div>`).join('');
+        mostrarResultado('ok', `<div style="font-weight:600;margin-bottom:8px">✅ Ping completado — ${r.resultados.filter(x=>x.online).length}/${r.resultados.length} online</div>${html}`);
+        cargarDiag();
+    } catch(e) { mostrarResultado('error', e.message); }
+}
+
+async function pingUno(id, nombre) {
+    mostrarResultado('info', `⏳ Haciendo ping a ${nombre}...`);
+    try {
+        const r = await API.sa.diag.ping(id);
+        if (r.online) {
+            mostrarResultado('ok', `✅ <strong>${nombre}</strong> responde — HTTP ${r.status} en ${r.ms}ms`);
+        } else {
+            mostrarResultado('error', `❌ <strong>${nombre}</strong> no responde — ${r.error} (${r.ms}ms)`);
+        }
+        cargarDiag();
+    } catch(e) { mostrarResultado('error', e.message); }
+}
+
+async function testUno(id, nombre) {
+    mostrarResultado('info', `⏳ Ejecutando test completo en ${nombre}...`);
+    try {
+        const r = await API.sa.diag.testESP32(id);
+        const html = r.pasos.map(p => `
+            <div style="display:flex;gap:10px;padding:7px 0;border-bottom:1px solid #f1f5f9;font-size:.84rem">
+                <span style="font-size:1rem">${p.ok ? '✅' : '❌'}</span>
+                <div><strong>${p.paso}</strong><br><span style="color:var(--gris-t);font-size:.78rem">${p.detalle}</span></div>
+            </div>`).join('');
+        const todo_ok = r.pasos.every(p => p.ok);
+        mostrarResultado(todo_ok ? 'ok' : 'warn',
+            `<div style="font-weight:600;margin-bottom:8px">${todo_ok ? '✅' : '⚠️'} Test de ${r.dispositivo.nombre} (${r.dispositivo.ip})</div>${html}`);
+        cargarDiag();
+    } catch(e) { mostrarResultado('error', e.message); }
+}
+
+async function cambiarIPDisp() {
+    const id  = document.getElementById('diagDispSel').value;
+    const ip  = document.getElementById('diagNuevaIP').value.trim();
+    if (!id || !ip) return alerta('error', 'Seleccioná un dispositivo e ingresá la nueva IP.');
+    if (!confirm(`¿Cambiar la IP del dispositivo a ${ip}? Se marcará como offline hasta el próximo ping.`)) return;
+    try {
+        await API.sa.diag.cambiarIP(id, ip);
+        alerta('ok', `IP actualizada a ${ip}. Haciendo ping...`);
+        document.getElementById('diagNuevaIP').value = '';
+        setTimeout(() => { pingUno(id, 'dispositivo'); cargarDiag(); }, 1000);
+    } catch(e) { alerta('error', e.message); }
+}
+
+async function forzarEstado(online) {
+    const id = document.getElementById('diagDispSel2').value;
+    if (!id) return alerta('error', 'Seleccioná un dispositivo.');
+    const disp = _diagDisps.find(d => d.id == id);
+    try {
+        await API.sa.diag.forzarOnline(id, online);
+        alerta('ok', `${disp?.nombre || 'Dispositivo'} marcado como ${online ? 'ONLINE' : 'OFFLINE'}`);
+        cargarDiag();
+    } catch(e) { alerta('error', e.message); }
+}
+
+async function testESP32() {
+    const id    = document.getElementById('diagDispSel3').value;
+    const disp  = _diagDisps.find(d => d.id == id);
+    if (!id) return alerta('error', 'Seleccioná un dispositivo.');
+    testUno(id, disp?.nombre || 'dispositivo');
+}
+
+function mostrarResultado(tipo, html) {
+    const el = document.getElementById('diagResultado');
+    const colores = {
+        ok:    { bg:'#f0fdf4', border:'#bbf7d0', color:'#15803d' },
+        error: { bg:'#fef2f2', border:'#fecaca', color:'#b91c1c' },
+        info:  { bg:'#eff6ff', border:'#bfdbfe', color:'#1d4ed8' },
+        warn:  { bg:'#fffbeb', border:'#fde68a', color:'#92400e' },
+    };
+    const c = colores[tipo] || colores.info;
+    el.style.display = 'block';
+    el.innerHTML = `<div style="background:${c.bg};border:1px solid ${c.border};border-radius:var(--radio-lg);padding:16px 18px;color:${c.color}">${html}</div>`;
+    el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+// ══ ESTADÍSTICAS ══════════════════════════════════════════════
+async function cargarStats() {
+    try {
+        const s = await API.sa.stats();
+        document.getElementById('saStatsGrid').innerHTML = `
+            <div class="stat-card-sa"><div class="stat-label">Total usuarios</div><div class="stat-val" style="color:var(--azul)">${s.usuarios.total}</div><div class="stat-sub">${s.usuarios.inactivos} inactivos</div></div>
+            <div class="stat-card-sa"><div class="stat-label">Super Admins</div><div class="stat-val" style="color:#7c3aed">${s.usuarios.superadmins}</div></div>
+            <div class="stat-card-sa"><div class="stat-label">Técnicos</div><div class="stat-val" style="color:var(--azul)">${s.usuarios.tecnicos}</div></div>
+            <div class="stat-card-sa"><div class="stat-label">Profesores</div><div class="stat-val" style="color:var(--azul)">${s.usuarios.profesores}</div></div>
+            <div class="stat-card-sa"><div class="stat-label">Dispositivos online</div><div class="stat-val" style="color:var(--verde)">${s.dispositivos.online}</div><div class="stat-sub">de ${s.dispositivos.total}</div></div>
+            <div class="stat-card-sa"><div class="stat-label">Logs totales</div><div class="stat-val" style="color:var(--azul)">${s.logs.total}</div><div class="stat-sub">${s.logs.hoy} hoy</div></div>
+            <div class="stat-card-sa"><div class="stat-label">Prácticas activas</div><div class="stat-val" style="color:var(--azul)">${s.practicas}</div></div>
+            <div class="stat-card-sa"><div class="stat-label">Tamaño BD</div><div class="stat-val" style="color:var(--azul);font-size:1.4rem">${s.db_size_kb}</div><div class="stat-sub">KB</div></div>
+        `;
+
+        // Gráfico accesos
+        const maxAcc = Math.max(...s.accesos_por_dia.map(d=>d.total), 1);
+        document.getElementById('chartAccesos').innerHTML = s.accesos_por_dia.length
+            ? '<div class="chart-bar-wrap">' + s.accesos_por_dia.map(d=>`
+                <div class="chart-bar-row">
+                    <div class="chart-bar-label">${d.dia}</div>
+                    <div class="chart-bar-bg"><div class="chart-bar-fill" style="width:${Math.round(d.total/maxAcc*100)}%"></div></div>
+                    <div class="chart-bar-val">${d.total}</div>
+                </div>`).join('') + '</div>'
+            : '<div class="empty-state" style="padding:16px"><p>Sin accesos registrados</p></div>';
+
+        // Gráfico prácticas
+        const maxPrac = Math.max(...s.practicas_mas_usadas.map(p=>p.usos), 1);
+        document.getElementById('chartPracticas').innerHTML = s.practicas_mas_usadas.length
+            ? '<div class="chart-bar-wrap">' + s.practicas_mas_usadas.map(p=>`
+                <div class="chart-bar-row">
+                    <div class="chart-bar-label">${p.titulo}</div>
+                    <div class="chart-bar-bg"><div class="chart-bar-fill" style="width:${Math.round(p.usos/maxPrac*100)}%;background:#7c3aed"></div></div>
+                    <div class="chart-bar-val">${p.usos}</div>
+                </div>`).join('') + '</div>'
+            : '<div class="empty-state" style="padding:16px"><p>Sin datos de uso</p></div>';
+
+    } catch(e) { alerta('error', e.message); }
+}
+
+// ══ TÉCNICOS ══════════════════════════════════════════════════
+async function cargarTecs() {
+    try {
+        const lista = await API.sa.tecnicos();
+        const cont = document.getElementById('tablaTec');
+        if(!lista.length){ cont.innerHTML='<div class="empty-state"><p>Sin técnicos registrados.</p></div>'; return; }
+        cont.innerHTML = `<table class="table"><thead><tr><th>Nombre</th><th>Email</th><th>Rol</th><th>Último acceso</th><th>Estado</th><th>Acciones</th></tr></thead><tbody>
+        ${lista.map(u=>`<tr>
+            <td><strong>${u.nombre}</strong></td><td>${u.email}</td>
+            <td><span class="badge" style="background:${u.rol==='superadmin'?'#ede9fe':'#dbeafe'};color:${u.rol==='superadmin'?'#6d28d9':'#1d4ed8'}">${u.rol==='superadmin'?'Super Admin':'Técnico'}</span></td>
+            <td style="color:var(--gris-t);font-size:.82rem">${u.ultimo_acceso?new Date(u.ultimo_acceso).toLocaleString('es-AR'):'Nunca'}</td>
+            <td><span class="badge ${u.activo?'badge-online':'badge-offline'}">${u.activo?'Activo':'Inactivo'}</span></td>
+            <td style="display:flex;gap:4px">
+                <button class="btn btn-secondary btn-sm" onclick="editarTec(${u.id},'${u.nombre.replace(/'/g,"\\'")}','${u.email}','${u.rol}')">✏</button>
+                <button class="btn btn-danger btn-sm" onclick="toggleTec(${u.id},${u.activo},'${u.nombre.replace(/'/g,"\\'")}')">
+                    ${u.activo?'Desactivar':'Activar'}
+                </button>
+            </td></tr>`).join('')}
+        </tbody></table>`;
+    } catch(e){ alerta('error',e.message); }
+}
+
+let _tecEditId=null;
+function abrirModalTec(){
+    _tecEditId=null;
+    ['tecNombre','tecEmail','tecPass'].forEach(id=>document.getElementById(id).value='');
+    document.getElementById('tecRol').value='tecnico';
+    document.getElementById('modalTecTitle').textContent='Nuevo Técnico / Admin';
+    document.getElementById('tecPassField').style.display='block';
+    API.abrirModal('modalTec');
+}
+function editarTec(id,nombre,email,rol){
+    _tecEditId=id;
+    document.getElementById('tecNombre').value=nombre;
+    document.getElementById('tecEmail').value=email;
+    document.getElementById('tecPass').value='';
+    document.getElementById('tecRol').value=rol;
+    document.getElementById('modalTecTitle').textContent='Editar Usuario';
+    API.abrirModal('modalTec');
+}
+async function guardarTec(){
+    const nombre=document.getElementById('tecNombre').value.trim(),
+          email=document.getElementById('tecEmail').value.trim(),
+          pass=document.getElementById('tecPass').value,
+          rol=document.getElementById('tecRol').value;
+    if(!nombre||!email) return alerta('error','Nombre y email son requeridos.');
+    if(!_tecEditId&&!pass) return alerta('error','La contraseña es requerida.');
+    try{
+        _tecEditId
+            ? await API.sa.actualizarTecnico(_tecEditId,{nombre,email,...(pass?{password:pass}:{})})
+            : await API.sa.crearTecnico({nombre,email,password:pass,rol});
+        API.cerrarModal('modalTec'); alerta('ok','Usuario guardado.'); cargarTecs();
+    }catch(e){ alerta('error',e.message); }
+}
+async function toggleTec(id,activo,nombre){
+    if(!confirm(`¿${activo?'Desactivar':'Activar'} a "${nombre}"?`)) return;
+    try{ await API.sa.actualizarTecnico(id,{activo:activo?0:1}); alerta('ok','Usuario actualizado.'); cargarTecs(); }
+    catch(e){ alerta('error',e.message); }
+}
+
+// ══ CONFIGURACIÓN ═════════════════════════════════════════════
+let _config={};
+async function cargarConfig(){
+    try{
+        _config = await API.sa.config();
+        const labels={
+            'facultad_nombre':'Nombre de la Facultad',
+            'universidad_nombre':'Nombre de la Universidad',
+            'sistema_nombre':'Nombre del Sistema',
+            'logs_max_dias':'Retención de logs (días)',
+        };
+        const form=document.getElementById('configForm');
+        form.innerHTML = Object.entries(labels).map(([k,label])=>`
+            <div class="config-row">
+                <div class="config-label">${label}</div>
+                <input type="text" class="config-input" id="cfg_${k}" value="${_config[k]||''}">
+            </div>`).join('');
+    }catch(e){ alerta('error',e.message,'alertaConfig'); }
+}
+async function guardarConfig(){
+    const labels={
+        'facultad_nombre':'','universidad_nombre':'',
+        'sistema_nombre':'','logs_max_dias':''
+    };
+    const data={};
+    Object.keys(labels).forEach(k=>{
+        const el=document.getElementById('cfg_'+k);
+        if(el) data[k]=el.value.trim();
+    });
+    try{
+        await API.sa.guardarConfig(data);
+        alerta('ok','Configuración guardada correctamente.','alertaConfig');
+    }catch(e){ alerta('error',e.message,'alertaConfig'); }
+}
+
+// ══ BASE DE DATOS ══════════════════════════════════════════════
+async function cargarBD(){
+    try{
+        const s=await API.sa.stats();
+        document.getElementById('bdInfo').innerHTML=`
+            <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px">
+                <div><span style="font-weight:600">Tamaño:</span> ${s.db_size_kb} KB</div>
+                <div><span style="font-weight:600">Logs totales:</span> ${s.logs.total}</div>
+                <div><span style="font-weight:600">Logs este mes:</span> ${s.logs.mes}</div>
+            </div>`;
+        const token=localStorage.getItem('token');
+        document.getElementById('btnBackup').href=`/api/sa/backup`;
+        document.getElementById('btnBackup').onclick=(e)=>{
+            e.preventDefault();
+            fetch('/api/sa/backup',{headers:{Authorization:'Bearer '+token}})
+                .then(r=>r.blob()).then(blob=>{
+                    const url=URL.createObjectURL(blob);
+                    const a=document.createElement('a');
+                    a.href=url; a.download=`backup_${new Date().toISOString().slice(0,10)}.db`;
+                    a.click(); URL.revokeObjectURL(url);
+                }).catch(()=>alerta('error','Error al generar backup'));
+        };
+    }catch(e){ alerta('error',e.message); }
+}
+async function vaciarTabla(tabla){
+    const nombres={logs:'los logs',dispositivos:'todos los dispositivos',practicas:'todas las prácticas'};
+    if(!confirm(`¿Estás seguro de que querés vaciar ${nombres[tabla]}? Esta acción no se puede deshacer.`)) return;
+    if(!confirm(`Confirmación final: ¿vaciar ${nombres[tabla]}?`)) return;
+    try{
+        const r=await API.sa.vaciarTabla(tabla);
+        alerta('ok', r.mensaje);
+        cargarBD();
+    }catch(e){ alerta('error',e.message); }
+}
+
+// ══ LOGS ══════════════════════════════════════════════════════
+async function cargarLogs(){
+    try{
+        const logs=await API.usuarios.logs();
+        const cont=document.getElementById('tablaLogs');
+        if(!logs.length){cont.innerHTML='<div class="empty-state"><p>Sin actividad registrada.</p></div>';return;}
+        const badge=a=>a==='login'?'badge-blue':a==='acceso_practica'?'badge-online':a.includes('vaciar')||a.includes('limpiar')?'badge-warn':'badge-offline';
+        cont.innerHTML=`<table class="table"><thead><tr><th>Fecha</th><th>Usuario</th><th>Rol</th><th>Acción</th><th>Detalle</th></tr></thead><tbody>
+        ${logs.map(l=>`<tr>
+            <td style="color:var(--gris-t);font-size:.82rem">${new Date(l.fecha).toLocaleString('es-AR')}</td>
+            <td>${l.usuario_nombre||'—'}</td>
+            <td><span class="badge badge-blue" style="font-size:.68rem">${l.rol||'—'}</span></td>
+            <td><span class="badge ${badge(l.accion)}" style="font-size:.72rem">${l.accion}</span></td>
+            <td style="color:var(--gris-t);font-size:.84rem">${l.practica_titulo||l.detalle||'—'}</td>
+        </tr>`).join('')}
+        </tbody></table>`;
+    }catch(e){ alerta('error',e.message); }
+}
+async function limpiarLogs(dias){
+    const msg=dias?`¿Eliminar logs de más de ${dias} días?`:'¿Eliminar TODOS los logs? Esto no se puede deshacer.';
+    if(!confirm(msg)) return;
+    try{
+        const r=await API.sa.limpiarLogs(dias||null);
+        alerta('ok', r.mensaje);
+        cargarLogs();
+    }catch(e){ alerta('error',e.message); }
+}
+
+// ── Cerrar modales ────────────────────────────────────────────
+document.querySelectorAll('.modal-overlay').forEach(m=>m.addEventListener('click',e=>{if(e.target===m)m.classList.remove('active');}));
+
+// ── Iniciar ───────────────────────────────────────────────────
+cargarStats();
+typeof Ayuda !== "undefined" && Ayuda.crear('superadmin');
+typeof Ayuda !== "undefined" && Ayuda.actualizar('superadmin', 'stats');
+</script>
+<script>
+(function() {
+    var s = document.createElement('script');
+    s.src = 'assets/js/ayuda.js';
+    s.onerror = function() {};
+    document.body.appendChild(s);
+})();
+</script>
+<!-- ── PANEL CONSOLA DESLIZABLE ── -->
+<div id="consolaPanel">
+    <div class="consola-header" onclick="toggleConsola()">
+        <div class="consola-header-left">
+            <svg viewBox="0 0 24 24" fill="none" stroke="#a78bfa" stroke-width="2" width="15" height="15"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
+            <span class="consola-titulo">Consola SSH</span>
+            <span class="consola-badge">Solo superadmin</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:12px">
+            <button onclick="event.stopPropagation();limpiarConsola()" style="background:none;border:none;color:#64748b;cursor:pointer;font-size:.75rem;font-family:inherit">✕ Limpiar</button>
+            <svg id="consolaChevron" viewBox="0 0 24 24" fill="none" stroke="#64748b" stroke-width="2" width="16" height="16" style="transition:transform .3s"><polyline points="18 15 12 9 6 15"/></svg>
+        </div>
+    </div>
+
+    <!-- Comandos predefinidos -->
+    <div class="consola-cmds" id="consolaCmds">
+        <span style="font-size:.78rem;color:#475569">Cargando comandos...</span>
+    </div>
+
+    <!-- Output -->
+    <div class="consola-output" id="consolaOutput">
+        <span class="out-info">▸ Consola lista. Usá los botones o escribí un comando abajo.</span>
+    </div>
+
+    <!-- Input libre -->
+    <div style="display:flex;align-items:center;gap:8px;padding:8px 14px;background:#0f172a;border-top:1px solid #334155;flex-shrink:0">
+        <span style="color:#a78bfa;font-size:.85rem;font-family:'Courier New',monospace;white-space:nowrap">$</span>
+        <input id="consolaInput" type="text" placeholder="Escribí cualquier comando..."
+            style="flex:1;background:#1e293b;border:1px solid #334155;border-radius:6px;
+                   color:#e2e8f0;font-family:'Courier New',monospace;font-size:.82rem;
+                   padding:6px 10px;outline:none;"
+            onkeydown="if(event.key==='Enter') ejecutarLibre()"
+            onfocus="this.style.borderColor='#7c3aed'"
+            onblur="this.style.borderColor='#334155'">
+        <button onclick="ejecutarLibre()"
+            style="background:#7c3aed;color:white;border:none;border-radius:6px;
+                   padding:6px 14px;font-size:.78rem;cursor:pointer;font-family:inherit;
+                   white-space:nowrap;flex-shrink:0">
+            ↵ Ejecutar
+        </button>
+    </div>
+</div>
+
+<script>
+// ══ CONSOLA ════════════════════════════════════════════════════
+let _consolaAbierta = false;
+let _consolaCmds    = [];
+let _historial      = [];
+let _histIdx        = -1;
+
+async function iniciarConsola() {
+    try {
+        const token = localStorage.getItem('token');
+        const r = await fetch('/api/sa/consola/comandos', {
+            headers: { Authorization: 'Bearer ' + token }
+        });
+        _consolaCmds = await r.json();
+        renderCmdBtns();
+    } catch(e) {
+        document.getElementById('consolaCmds').innerHTML =
+            `<span style="color:#f87171;font-size:.75rem">Error cargando comandos: ${e.message}</span>`;
+    }
+}
+
+function renderCmdBtns() {
+    const grupos = {};
+    _consolaCmds.forEach(c => {
+        if (!grupos[c.grupo]) grupos[c.grupo] = [];
+        grupos[c.grupo].push(c);
+    });
+    document.getElementById('consolaCmds').innerHTML = Object.entries(grupos).map(([grupo, cmds]) => `
+        <div class="consola-grupo">
+            <span class="consola-grupo-label">${grupo}</span>
+            ${cmds.map(c => `
+                <button class="cmd-btn" id="cbtn_${c.id}" onclick="ejecutarCmd('${c.id}','${escHTML(c.label)}')">
+                    ${c.label}
+                </button>`).join('')}
+        </div>`).join('<div style="width:1px;background:#334155;margin:0 4px;align-self:stretch"></div>');
+}
+
+async function ejecutarCmd(id, label) {
+    bloquearBtns(true);
+    const output = document.getElementById('consolaOutput');
+    const ts = new Date().toLocaleTimeString('es-AR');
+    output.innerHTML += `\n<span class="out-prompt">▸ [${ts}] ${label}</span>\n`;
+    output.scrollTop = output.scrollHeight;
+
+    try {
+        const token = localStorage.getItem('token');
+        const r = await fetch('/api/sa/consola', {
+            method:  'POST',
+            headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
+            body:    JSON.stringify({ comando_id: id })
+        });
+        const data = await r.json();
+        output.innerHTML += data.ok
+            ? `<span class="out-ok">${escHTML(data.output || '(sin output)')}</span>`
+            : `<span class="out-error">${escHTML(data.output || data.error || 'Error')}</span>`;
+    } catch(e) {
+        output.innerHTML += `<span class="out-error">Error de red: ${e.message}</span>`;
+    }
+
+    output.innerHTML += `\n<div class="consola-separator"></div>`;
+    output.scrollTop  = output.scrollHeight;
+    bloquearBtns(false);
+    renderCmdBtns();
+}
+
+async function ejecutarLibre() {
+    const input  = document.getElementById('consolaInput');
+    const cmd    = input.value.trim();
+    if (!cmd) return;
+
+    // Historial de navegación con flechas
+    _historial.unshift(cmd);
+    if (_historial.length > 50) _historial.pop();
+    _histIdx = -1;
+    input.value = '';
+
+    bloquearBtns(true);
+    const output = document.getElementById('consolaOutput');
+    const ts = new Date().toLocaleTimeString('es-AR');
+    output.innerHTML += `\n<span class="out-prompt">▸ [${ts}] $ ${escHTML(cmd)}</span>\n`;
+    output.scrollTop = output.scrollHeight;
+
+    try {
+        const token = localStorage.getItem('token');
+        const r = await fetch('/api/sa/consola/libre', {
+            method:  'POST',
+            headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
+            body:    JSON.stringify({ cmd })
+        });
+        const data = await r.json();
+        output.innerHTML += data.ok
+            ? `<span class="out-ok">${escHTML(data.output || '(sin output)')}</span>`
+            : `<span class="out-error">${escHTML(data.output || data.error || 'Error')}</span>`;
+    } catch(e) {
+        output.innerHTML += `<span class="out-error">Error de red: ${e.message}</span>`;
+    }
+
+    output.innerHTML += `\n<div class="consola-separator"></div>`;
+    output.scrollTop  = output.scrollHeight;
+    bloquearBtns(false);
+}
+
+// Navegación por historial con flechas ↑↓
+document.addEventListener('DOMContentLoaded', () => {
+    const input = document.getElementById('consolaInput');
+    if (!input) return;
+    input.addEventListener('keydown', e => {
+        if (e.key === 'ArrowUp') {
+            e.preventDefault();
+            if (_histIdx < _historial.length - 1) {
+                _histIdx++;
+                input.value = _historial[_histIdx];
+            }
+        } else if (e.key === 'ArrowDown') {
+            e.preventDefault();
+            if (_histIdx > 0) { _histIdx--; input.value = _historial[_histIdx]; }
+            else { _histIdx = -1; input.value = ''; }
+        }
+    });
+});
+
+function bloquearBtns(v) {
+    document.querySelectorAll('.cmd-btn').forEach(b => b.disabled = v);
+    document.getElementById('consolaInput').disabled = v;
+}
+
+function toggleConsola() {
+    _consolaAbierta = !_consolaAbierta;
+    document.getElementById('consolaPanel').classList.toggle('abierto', _consolaAbierta);
+    document.getElementById('consolaChevron').style.transform = _consolaAbierta ? 'rotate(180deg)' : '';
+    const btn = document.getElementById('sbConsola');
+    if (btn) btn.classList.toggle('active', _consolaAbierta);
+    if (_consolaAbierta) {
+        setTimeout(() => document.getElementById('consolaInput').focus(), 350);
+    }
+}
+
+function limpiarConsola() {
+    document.getElementById('consolaOutput').innerHTML =
+        '<span class="out-info">▸ Consola limpiada.</span>';
+}
+
+function escHTML(str) {
+    if (!str) return '';
+    return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+iniciarConsola();
+</script>
+</body>
+    <div class="consola-header" onclick="toggleConsola()">
+        <div class="consola-header-left">
+            <svg viewBox="0 0 24 24" fill="none" stroke="#a78bfa" stroke-width="2" width="15" height="15"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
+            <span class="consola-titulo">Consola del sistema</span>
+            <span class="consola-badge">Solo superadmin</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:12px">
+            <button onclick="event.stopPropagation();limpiarConsola()" style="background:none;border:none;color:#64748b;cursor:pointer;font-size:.75rem;font-family:inherit">✕ Limpiar</button>
+            <svg id="consolaChevron" viewBox="0 0 24 24" fill="none" stroke="#64748b" stroke-width="2" width="16" height="16" style="transition:transform .3s"><polyline points="18 15 12 9 6 15"/></svg>
+        </div>
+    </div>
+    <div class="consola-cmds" id="consolaCmds">
+        <span style="font-size:.78rem;color:#475569">Cargando comandos...</span>
+    </div>
+    <div class="consola-output" id="consolaOutput">
+        <span class="out-info">▸ Panel de consola listo. Seleccioná un comando para ejecutarlo.</span>
+    </div>
+</div>
+
+<script>
+// ══ CONSOLA ════════════════════════════════════════════════════
+let _consolaAbierta = false;
+let _consolaCmds    = [];
+
+async function iniciarConsola() {
+    try {
+        const token = localStorage.getItem('token');
+        const r = await fetch('/api/sa/consola/comandos', {
+            headers: { Authorization: 'Bearer ' + token }
+        });
+        _consolaCmds = await r.json();
+        renderCmdBtns();
+    } catch(e) {
+        document.getElementById('consolaCmds').innerHTML =
+            `<span style="color:#f87171;font-size:.75rem">Error cargando comandos: ${e.message}</span>`;
+    }
+}
+
+function renderCmdBtns() {
+    const grupos = {};
+    _consolaCmds.forEach(c => {
+        if (!grupos[c.grupo]) grupos[c.grupo] = [];
+        grupos[c.grupo].push(c);
+    });
+    document.getElementById('consolaCmds').innerHTML = Object.entries(grupos).map(([grupo, cmds]) => `
+        <div class="consola-grupo">
+            <span class="consola-grupo-label">${grupo}</span>
+            ${cmds.map(c => `
+                <button class="cmd-btn" id="cbtn_${c.id}" onclick="ejecutarCmd('${c.id}','${c.label}')">
+                    ${c.label}
+                </button>`).join('')}
+        </div>`).join('<div style="width:1px;background:#334155;margin:0 4px;align-self:stretch"></div>');
+}
+
+async function ejecutarCmd(id, label) {
+    const output = document.getElementById('consolaOutput');
+    const btn    = document.getElementById('cbtn_' + id);
+
+    // Deshabilitar todos los botones mientras ejecuta
+    document.querySelectorAll('.cmd-btn').forEach(b => b.disabled = true);
+    if (btn) btn.textContent = '⏳ ' + label;
+
+    // Mostrar prompt
+    const ts = new Date().toLocaleTimeString('es-AR');
+    output.innerHTML += `\n<span class="out-prompt">▸ [${ts}] ${label}</span>\n`;
+    output.scrollTop = output.scrollHeight;
+
+    try {
+        const token = localStorage.getItem('token');
+        const r = await fetch('/api/sa/consola', {
+            method:  'POST',
+            headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
+            body:    JSON.stringify({ comando_id: id })
+        });
+        const data = await r.json();
+
+        if (data.ok) {
+            output.innerHTML += `<span class="out-ok">${escHTML(data.output || '(sin output)')}</span>`;
+        } else {
+            output.innerHTML += `<span class="out-error">${escHTML(data.output || data.error || 'Error desconocido')}</span>`;
+        }
+    } catch(e) {
+        output.innerHTML += `<span class="out-error">Error de red: ${e.message}</span>`;
+    }
+
+    output.innerHTML += `\n<div class="consola-separator"></div>`;
+    output.scrollTop  = output.scrollHeight;
+
+    // Rehabilitar botones
+    document.querySelectorAll('.cmd-btn').forEach(b => b.disabled = false);
+    renderCmdBtns(); // restaurar labels originales
+}
+
+function toggleConsola() {
+    _consolaAbierta = !_consolaAbierta;
+    document.getElementById('consolaPanel').classList.toggle('abierto', _consolaAbierta);
+    document.getElementById('consolaBtnFlotante').classList.toggle('consola-abierta', _consolaAbierta);
+    document.getElementById('consolaChevron').style.transform = _consolaAbierta ? 'rotate(180deg)' : '';
+    document.getElementById('consolaBtnFlotante').innerHTML = _consolaAbierta
+        ? `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15"><polyline points="18 15 12 9 6 15"/></svg> Cerrar`
+        : `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg> Consola`;
+}
+
+function limpiarConsola() {
+    document.getElementById('consolaOutput').innerHTML =
+        '<span class="out-info">▸ Consola limpiada.</span>';
+}
+
+function escHTML(str) {
+    return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+iniciarConsola();
+</script>
+</body>
+</html>

@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dispositivo no disponible</title>
+    <link rel="stylesheet" href="assets/css/main.css">
+</head>
+<body style="display:flex;flex-direction:column;height:100vh;overflow:hidden">
+
+<nav class="navbar">
+    <div class="navbar-brand" onclick="window.location.href='panel-profesor.html'" style="cursor:pointer">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14" style="color:rgba(255,255,255,.7);flex-shrink:0"><polyline points="15 18 9 12 15 6"/></svg>
+        <img src="https://udemm.edu.ar/wp-content/uploads/2024/01/Udemm-Logo.webp"
+             alt="UdeMM" style="height:24px;filter:brightness(0) invert(1);opacity:.85;flex-shrink:0"
+             onerror="this.style.display='none'">
+        <div>
+            <div class="navbar-brand-text">Volver a mis prácticas</div>
+            <div class="navbar-brand-sub">Laboratorio de Ingeniería</div>
+        </div>
+    </div>
+    <div class="navbar-right">
+        <span class="navbar-user" id="nombreUsuario">—</span>
+        <button class="navbar-btn" onclick="API.logout()">Salir</button>
+    </div>
+</nav>
+
+<div class="error-page">
+    <div class="error-card">
+        <div class="error-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="1" y1="1" x2="23" y2="23"/><path d="M16.72 11.06A10.94 10.94 0 0 1 19 12.55"/><path d="M5 12.55a10.94 10.94 0 0 1 5.17-2.39"/><path d="M10.71 5.05A16 16 0 0 1 22.56 9"/><path d="M1.42 9a15.91 15.91 0 0 1 4.7-2.88"/><path d="M8.53 16.11a6 6 0 0 1 6.95 0"/><line x1="12" y1="20" x2="12.01" y2="20"/></svg>
+        </div>
+        <h2 class="error-title">Dispositivo no disponible</h2>
+        <p class="error-msg" id="errorMsg">El dispositivo ESP32 asignado a esta práctica no responde. Verificá que esté encendido y conectado a la red.</p>
+        <div class="error-detail" id="errorDetail" style="display:none">
+            <div class="error-detail-row"><span>Práctica</span><span id="detPractica">—</span></div>
+            <div class="error-detail-row"><span>Dispositivo</span><span id="detDisp">—</span></div>
+            <div class="error-detail-row"><span>IP</span><span id="detIP">—</span></div>
+            <div class="error-detail-row"><span>Último intento</span><span id="detHora">—</span></div>
+        </div>
+        <div class="error-actions">
+            <button class="btn btn-primary" id="btnReintentar" onclick="reintentar()">↻ Reintentar conexión</button>
+            <a href="panel-profesor.html" class="btn btn-secondary" style="text-align:center">← Volver a mis prácticas</a>
+        </div>
+        <p class="error-countdown" id="countdown"></p>
+    </div>
+</div>
+
+<script src="assets/js/api.js"></script>
+<script>
+    const usuario = API.requireAuth();
+    if (usuario) document.getElementById('nombreUsuario').textContent = usuario.nombre;
+    const params = new URLSearchParams(window.location.search);
+    const practicaId = params.get('id');
+    const motivo = params.get('motivo') || 'sin_conexion';
+    let intentos = 0, countdownInterval;
+
+    async function init() {
+        if (!practicaId) return;
+        try {
+            const p = await API.practicas.obtener(practicaId);
+            document.getElementById('errorDetail').style.display = 'block';
+            document.getElementById('detPractica').textContent = p.titulo;
+            document.getElementById('detDisp').textContent     = p.dispositivo_nombre || '—';
+            document.getElementById('detIP').textContent       = p.ip || '—';
+            document.getElementById('detHora').textContent     = new Date().toLocaleTimeString('es-AR');
+            if (motivo === 'timeout') document.getElementById('errorMsg').textContent = `El dispositivo "${p.dispositivo_nombre}" no respondió en tiempo. Puede estar ocupado o apagado.`;
+            else if (motivo === 'proxy_error') document.getElementById('errorMsg').textContent = `No se pudo conectar con "${p.dispositivo_nombre}" (${p.ip}).`;
+        } catch {}
+        iniciarCountdown(30);
+    }
+
+    function iniciarCountdown(seg) {
+        clearInterval(countdownInterval);
+        let r = seg;
+        document.getElementById('countdown').textContent = `Reintentando en ${r}s...`;
+        countdownInterval = setInterval(() => {
+            r--;
+            if (r <= 0) { clearInterval(countdownInterval); reintentar(); }
+            else document.getElementById('countdown').textContent = `Reintentando en ${r}s...`;
+        }, 1000);
+    }
+
+    async function reintentar() {
+        clearInterval(countdownInterval);
+        intentos++;
+        const btn = document.getElementById('btnReintentar');
+        btn.textContent = 'Verificando...'; btn.disabled = true;
+        document.getElementById('countdown').textContent = '';
+        try {
+            const p    = await API.practicas.obtener(practicaId);
+            const ping = await API.dispositivos.ping(p.dispositivo_id);
+            if (ping.online) {
+                document.getElementById('errorMsg').textContent = '✓ Dispositivo disponible. Redirigiendo...';
+                setTimeout(() => window.location.href = `practica.html?id=${practicaId}`, 1200);
+                return;
+            }
+        } catch {}
+        btn.textContent = '↻ Reintentar conexión'; btn.disabled = false;
+        document.getElementById('detHora').textContent = new Date().toLocaleTimeString('es-AR');
+        iniciarCountdown(Math.min(30 + intentos * 10, 60));
+    }
+
+    window.addEventListener('beforeunload', () => clearInterval(countdownInterval));
+    init();
+</script>
+</body>
+</html>

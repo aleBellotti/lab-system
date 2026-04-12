@@ -1,0 +1,1084 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Panel Técnico — Sistema de Laboratorio</title>
+    <link rel="stylesheet" href="assets/css/main.css">
+</head>
+<body>
+<div class="app-shell">
+
+<!-- SIDEBAR -->
+<aside class="sidebar">
+    <div class="sb-logo">
+        <img src="https://udemm.edu.ar/wp-content/uploads/2024/01/Udemm-Logo.webp"
+             alt="UdeMM" class="sb-logo-img"
+             onerror="this.style.display='none'">
+        <div class="sb-logo-label">Laboratorio de Ingeniería</div>
+    </div>
+    <div class="sb-user">
+        <div class="sb-avatar" id="sbAvatar">TA</div>
+        <div style="min-width:0">
+            <div class="sb-uname" id="sbNombre">Técnico Admin</div>
+            <div class="sb-urol">Administrador</div>
+        </div>
+    </div>
+    <nav class="sb-nav">
+        <div class="sb-section">General</div>
+        <button class="sb-item active" data-sec="dashboard" onclick="ir('dashboard',this)">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="9"/><rect x="14" y="3" width="7" height="5"/><rect x="14" y="12" width="7" height="9"/><rect x="3" y="16" width="7" height="5"/></svg>
+            Dashboard
+        </button>
+        <div class="sb-section">Gestión</div>
+        <button class="sb-item" data-sec="dispositivos" onclick="ir('dispositivos',this)">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
+            Dispositivos <span class="sb-badge" id="badge-disp">—</span>
+        </button>
+        <button class="sb-item" data-sec="practicas" onclick="ir('practicas',this)">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="13" x2="15" y2="13"/><line x1="9" y1="17" x2="13" y2="17"/></svg>
+            Prácticas <span class="sb-badge" id="badge-prac">—</span>
+        </button>
+        <button class="sb-item" data-sec="materias" onclick="ir('materias',this)">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+            Materias <span class="sb-badge" id="badge-mat">—</span>
+        </button>
+        <button class="sb-item" data-sec="usuarios" onclick="ir('usuarios',this)">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+            Usuarios <span class="sb-badge" id="badge-usr">—</span>
+        </button>
+        <div class="sb-section">Sistema</div>
+        <button class="sb-item" data-sec="logs" onclick="ir('logs',this)">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+            Actividad
+        </button>
+        <button class="sb-item" data-sec="password" onclick="ir('password',this)">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+            Mi contraseña
+        </button>
+    </nav>
+    <div class="sb-footer">
+        <!-- Botón volver al panel SA — solo visible para superadmin -->
+        <button class="sb-logout" id="btnVolverSA" style="display:none;color:rgba(255,255,255,.7);margin-bottom:4px;border-top:none"
+                onclick="window.location.href='panel-superadmin.html'">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15"><polyline points="15 18 9 12 15 6"/></svg>
+            Panel Super Admin
+        </button>
+        <div style="height:1px;background:rgba(255,255,255,.08);margin:4px 0" id="sepSA" style="display:none"></div>
+        <button class="sb-logout" onclick="API.logout()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+            Cerrar sesión
+        </button>
+    </div>
+</aside>
+
+<!-- CONTENIDO -->
+<div class="main-content">
+<div id="alerta" style="display:none;margin:14px 28px 0"></div>
+
+<!-- DASHBOARD -->
+<div id="sec-dashboard" class="sec active">
+    <div class="sec-header">
+        <div class="sec-header-left"><h2>Dashboard</h2><p>Resumen general del sistema de laboratorio</p></div>
+        <div class="sec-header-actions">
+            <button class="btn btn-secondary btn-sm" onclick="cargarDashboard()">↻ Actualizar</button>
+        </div>
+    </div>
+    <div class="sec-body">
+        <div class="stats-grid" id="dashStats"><div class="stat-card"><div class="stat-label">Cargando...</div></div></div>
+        <div class="dash-grid">
+            <div class="dash-card">
+                <div class="dash-card-title">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
+                    Estado de dispositivos
+                </div>
+                <div id="dashDispositivos"><div class="empty-state" style="padding:20px"><p>Cargando...</p></div></div>
+            </div>
+            <div class="dash-card">
+                <div class="dash-card-title">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                    Últimos accesos
+                </div>
+                <div id="dashAccesos"><div class="empty-state" style="padding:20px"><p>Cargando...</p></div></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- DISPOSITIVOS -->
+<div id="sec-dispositivos" class="sec">
+    <div class="sec-header">
+        <div class="sec-header-left"><h2>Dispositivos ESP32</h2><p>Dispositivos registrados en la red local del laboratorio</p></div>
+        <div class="sec-header-actions">
+            <button class="btn btn-secondary btn-sm" onclick="pingTodos()">↻ Verificar estado</button>
+            <button class="btn btn-secondary btn-sm" onclick="abrirModalEscaneo()">&#128268; Escanear red</button>
+            <button class="btn btn-primary btn-sm" onclick="abrirModalDisp()">+ Nuevo</button>
+        </div>
+    </div>
+    <div class="sec-body">
+        <div id="macsPendientes" style="display:none;margin-bottom:16px"></div>
+        <div class="card"><div id="tablaDisp" style="padding:4px 0"></div></div>
+    </div>
+</div>
+
+<!-- PRÁCTICAS -->
+<div id="sec-practicas" class="sec">
+    <div class="sec-header">
+        <div class="sec-header-left"><h2>Prácticas de Laboratorio</h2><p>Prácticas asignadas a cada dispositivo y materia</p></div>
+        <div class="sec-header-actions">
+            <button class="btn btn-primary btn-sm" onclick="abrirModalPrac()">+ Nueva</button>
+        </div>
+    </div>
+    <div class="sec-body">
+        <div class="card"><div id="tablaPrac" style="padding:4px 0"></div></div>
+    </div>
+</div>
+
+<!-- MATERIAS -->
+<div id="sec-materias" class="sec">
+    <div class="sec-header">
+        <div class="sec-header-left"><h2>Materias</h2><p>Materias de la facultad</p></div>
+        <div class="sec-header-actions">
+            <button class="btn btn-primary btn-sm" onclick="abrirModalMat()">+ Nueva</button>
+        </div>
+    </div>
+    <div class="sec-body">
+        <div class="card"><div id="tablaMat" style="padding:4px 0"></div></div>
+    </div>
+</div>
+
+<!-- USUARIOS -->
+<div id="sec-usuarios" class="sec">
+    <div class="sec-header">
+        <div class="sec-header-left"><h2>Usuarios del Sistema</h2><p>Profesores y técnicos con acceso</p></div>
+        <div class="sec-header-actions">
+            <button class="btn btn-primary btn-sm" onclick="abrirModalUsr()">+ Nuevo</button>
+        </div>
+    </div>
+    <div class="sec-body">
+        <div class="card"><div id="tablaUsr" style="padding:4px 0"></div></div>
+    </div>
+</div>
+
+<!-- LOGS -->
+<div id="sec-logs" class="sec">
+    <div class="sec-header">
+        <div class="sec-header-left"><h2>Actividad Reciente</h2><p>Últimas 50 acciones registradas</p></div>
+        <div class="sec-header-actions">
+            <button class="btn btn-secondary btn-sm" onclick="cargarLogs()">↻ Actualizar</button>
+        </div>
+    </div>
+    <div class="sec-body">
+        <div class="card"><div id="tablaLogs" style="padding:4px 0"></div></div>
+    </div>
+</div>
+
+<!-- CONTRASEÑA -->
+<div id="sec-password" class="sec">
+    <div class="sec-header">
+        <div class="sec-header-left"><h2>Cambiar contraseña</h2><p>Actualizá la contraseña de tu cuenta</p></div>
+    </div>
+    <div class="sec-body">
+        <div class="card card-body password-card">
+            <div id="alertaPass" style="display:none;margin-bottom:14px"></div>
+            <div class="field-group"><label class="field-label">Contraseña actual *</label><input type="password" id="passActual" class="field-input" placeholder="Tu contraseña actual"></div>
+            <div class="field-group"><label class="field-label">Nueva contraseña *</label><input type="password" id="passNueva" class="field-input" placeholder="Mínimo 6 caracteres"></div>
+            <div class="field-group"><label class="field-label">Confirmar nueva contraseña *</label><input type="password" id="passConfirm" class="field-input" placeholder="Repetí la nueva contraseña"></div>
+            <button class="btn btn-primary" onclick="cambiarPassword()">Actualizar contraseña</button>
+        </div>
+    </div>
+</div>
+
+</div><!-- /main-content -->
+</div><!-- /app-shell -->
+
+<!-- MODAL DISPOSITIVO -->
+<div class="modal-overlay" id="modalDisp">
+    <div class="modal-box">
+        <div class="modal-title" id="modalDispTitle">Nuevo Dispositivo ESP32</div>
+        <input type="hidden" id="dispId">
+        <div class="field-group"><label class="field-label">Nombre *</label><input type="text" id="dispNombre" class="field-input" placeholder="ESP32-Electrónica-01"></div>
+        <div class="field-group"><label class="field-label">Dirección IP</label><input type="text" id="dispIP" class="field-input" placeholder="192.168.1.101 (opcional, el ESP32 la actualiza al arrancar)"></div>
+        <div class="field-group">
+            <label class="field-label">MAC Address</label>
+            <input type="text" id="dispMAC" class="field-input" placeholder="AA:BB:CC:DD:EE:FF (necesaria para auto-registro)">
+            <div id="dispMACHint" style="font-size:.76rem;color:var(--gris-t);margin-top:4px">La MAC permite que el ESP32 se registre solo al encenderse. Se obtiene desde Actividad → MACs pendientes.</div>
+            <div id="dispMACHintEscaneo" style="display:none;font-size:.76rem;background:#fef3c7;border:1px solid #fde68a;border-radius:6px;padding:6px 10px;margin-top:4px;color:#92400e">
+                ⚠ MAC no disponible en este firmware. Podés completarla después desde el botón ✏ de la tabla, o conectando el ESP32 al Serial Monitor para leerla.
+            </div>
+        </div>
+        <div class="field-group"><label class="field-label">Materia</label><select id="dispMateria" class="field-select"></select></div>
+        <div class="field-group"><label class="field-label">Descripción</label><input type="text" id="dispDesc" class="field-input" placeholder="Opcional"></div>
+        <div class="modal-actions">
+            <button class="btn btn-secondary btn-sm" onclick="cerrarModal('modalDisp')">Cancelar</button>
+            <button class="btn btn-primary btn-sm" onclick="guardarDisp()">Guardar</button>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL PRÁCTICA -->
+<div class="modal-overlay" id="modalPrac">
+    <div class="modal-box">
+        <div class="modal-title" id="modalPracTitle">Nueva Práctica</div>
+        <input type="hidden" id="pracId">
+        <div class="field-group"><label class="field-label">Título *</label><input type="text" id="pracTitulo" class="field-input" placeholder="Práctica 1 — Ley de Ohm"></div>
+        <div class="field-group"><label class="field-label">Materia *</label><select id="pracMateria" class="field-select"></select></div>
+        <div class="field-group"><label class="field-label">Dispositivo *</label><select id="pracDisp" class="field-select"></select></div>
+        <div class="field-group"><label class="field-label">Descripción</label><textarea id="pracDesc" class="field-textarea" placeholder="Opcional"></textarea></div>
+        <div class="modal-actions">
+            <button class="btn btn-secondary btn-sm" onclick="cerrarModal('modalPrac')">Cancelar</button>
+            <button class="btn btn-primary btn-sm" onclick="guardarPrac()">Guardar</button>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL MATERIA -->
+<div class="modal-overlay" id="modalMat">
+    <div class="modal-box">
+        <div class="modal-title" id="modalMatTitle">Nueva Materia</div>
+        <input type="hidden" id="matId">
+        <div class="field-group"><label class="field-label">Nombre *</label><input type="text" id="matNombre" class="field-input" placeholder="Electrónica I"></div>
+        <div class="field-group"><label class="field-label">Descripción</label><input type="text" id="matDesc" class="field-input" placeholder="Opcional"></div>
+        <div class="modal-actions">
+            <button class="btn btn-secondary btn-sm" onclick="cerrarModal('modalMat')">Cancelar</button>
+            <button class="btn btn-primary btn-sm" onclick="guardarMat()">Guardar</button>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL USUARIO -->
+<div class="modal-overlay" id="modalUsr">
+    <div class="modal-box" style="max-width:500px">
+        <div class="modal-title" id="modalUsrTitle">Nuevo Usuario</div>
+        <input type="hidden" id="usrId">
+        <div class="field-group"><label class="field-label">Nombre *</label><input type="text" id="usrNombre" class="field-input" placeholder="Dr. Juan García"></div>
+        <div class="field-group"><label class="field-label">Email *</label><input type="email" id="usrEmail" class="field-input" placeholder="profesor@facultad.edu"></div>
+        <div class="field-group" id="campoPass"><label class="field-label">Contraseña *</label><input type="password" id="usrPass" class="field-input" placeholder="Mínimo 6 caracteres"></div>
+        <div class="field-group"><label class="field-label">Rol *</label>
+            <select id="usrRol" class="field-select" onchange="toggleMaterias()">
+                <option value="profesor">Profesor</option>
+                <option value="tecnico">Técnico</option>
+            </select>
+        </div>
+        <div class="field-group" id="secMaterias">
+            <label class="field-label">Materias asignadas</label>
+            <div class="chips-area" id="chipsMateria"></div>
+            <div class="chip-add-row">
+                <select id="selectMateriaUsr" class="field-select"></select>
+                <button class="btn btn-secondary btn-sm" onclick="asignarChip()">+ Asignar</button>
+            </div>
+        </div>
+        <div class="modal-actions">
+            <button class="btn btn-secondary btn-sm" onclick="cerrarModal('modalUsr')">Cancelar</button>
+            <button class="btn btn-primary btn-sm" onclick="guardarUsr()">Guardar</button>
+        </div>
+    </div>
+</div>
+
+<script src="assets/js/api.js"></script>
+<script>
+// ── Auth ──────────────────────────────────────────────────────
+const usuario = API.requireAuth('tecnico');
+if (usuario) {
+    document.getElementById('sbNombre').textContent = usuario.nombre;
+    document.getElementById('sbAvatar').textContent = usuario.nombre.split(' ').map(p=>p[0]).slice(0,2).join('').toUpperCase();
+    // Mostrar botón "Volver al Panel Super Admin" solo si es superadmin
+    if (usuario.rol === 'superadmin') {
+        document.getElementById('btnVolverSA').style.display = 'flex';
+        document.getElementById('sepSA').style.display = 'block';
+    }
+}
+
+let _mats=[], _disps=[], _matsModal=[], _matsTemp=[], _usrEditId=null;
+
+// ── Navegación ────────────────────────────────────────────────
+function ir(sec, btn) {
+    document.querySelectorAll('.sec').forEach(s=>s.classList.remove('active'));
+    document.querySelectorAll('.sb-item').forEach(b=>b.classList.remove('active'));
+    document.getElementById('sec-'+sec).classList.add('active');
+    btn.classList.add('active');
+    const fn = {dashboard:cargarDashboard,dispositivos:cargarDisps,practicas:cargarPracs,materias:cargarMats,usuarios:cargarUsrs,logs:cargarLogs};
+    if(fn[sec]) fn[sec]();
+    typeof Ayuda !== "undefined" && Ayuda.actualizar('tecnico', sec);
+}
+
+// ── Modales ───────────────────────────────────────────────────
+function abrirModal(id) { document.getElementById(id).classList.add('active'); }
+function cerrarModal(id){ document.getElementById(id).classList.remove('active'); }
+// Cierre al hacer click fuera — bloqueado en modales con formulario
+// para no perder datos ingresados accidentalmente
+const MODALES_SIN_CIERRE_EXTERNO = new Set(['modalDisp', 'modalUsr', 'modalPrac', 'modalMat']);
+document.querySelectorAll('.modal-overlay').forEach(m => {
+    m.addEventListener('click', e => {
+        if (e.target === m && !MODALES_SIN_CIERRE_EXTERNO.has(m.id))
+            m.classList.remove('active');
+    });
+});
+
+// ── Alertas ───────────────────────────────────────────────────
+function alerta(tipo, msg, elId='alerta') {
+    const el = document.getElementById(elId);
+    el.className = `alert alert-${tipo}`;
+    el.innerHTML = msg;
+    el.style.display = 'flex';
+    if(tipo==='success') setTimeout(()=>el.style.display='none', 3000);
+}
+
+// ── Tabla helper ──────────────────────────────────────────────
+function emptyState(msg) {
+    return `<div class="empty-state"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="40" height="40"><rect x="3" y="3" width="18" height="18" rx="2"/></svg><p>${msg}</p></div>`;
+}
+
+// ══════════════════════════════════════════════════════════════
+// DASHBOARD
+// ══════════════════════════════════════════════════════════════
+async function cargarDashboard() {
+    try {
+        const d = await API.dashboard.resumen();
+        const r = d.resumen;
+        document.getElementById('dashStats').innerHTML = `
+            <div class="stat-card"><div class="stat-label">ESP32 Online</div><div class="stat-val stat-green">${r.onlineCount}</div><div class="stat-sub">de ${r.totalDispositivos} registrados</div></div>
+            <div class="stat-card"><div class="stat-label">ESP32 Offline</div><div class="stat-val stat-red">${r.offlineCount}</div><div class="stat-sub">sin conexión</div></div>
+            <div class="stat-card"><div class="stat-label">Prácticas</div><div class="stat-val stat-blue">${r.totalPracticas}</div><div class="stat-sub">activas</div></div>
+            <div class="stat-card"><div class="stat-label">Profesores</div><div class="stat-val stat-blue">${r.totalUsuarios}</div><div class="stat-sub">registrados</div></div>
+            <div class="stat-card"><div class="stat-label">Materias</div><div class="stat-val stat-blue">${r.totalMaterias}</div><div class="stat-sub">activas</div></div>
+            <div class="stat-card"><div class="stat-label">Accesos hoy</div><div class="stat-val stat-blue">${r.accesosHoy}</div><div class="stat-sub">prácticas iniciadas</div></div>`;
+
+        document.getElementById('dashDispositivos').innerHTML = d.dispositivosEstado.length
+            ? d.dispositivosEstado.map(d=>`
+                <div class="dash-row">
+                    <div><div class="dash-row-main">${d.nombre}</div><div class="dash-row-sub">${d.materia||'Sin materia'} · <code>${d.ip}</code></div></div>
+                    <span class="badge ${d.online?'badge-online':'badge-offline'}">
+                        <svg viewBox="0 0 24 24" width="7" height="7" fill="${d.online?'#16a34a':'#94a3b8'}"><circle cx="12" cy="12" r="12"/></svg>
+                        ${d.online?'Online':'Offline'}
+                    </span>
+                </div>`).join('')
+            : emptyState('Sin dispositivos');
+
+        document.getElementById('dashAccesos').innerHTML = d.ultimosAccesos.length
+            ? d.ultimosAccesos.map(a=>`
+                <div class="dash-row">
+                    <div><div class="dash-row-main">${a.practica||'—'}</div><div class="dash-row-sub">${a.usuario||'—'}</div></div>
+                    <div style="font-size:.75rem;color:var(--gris-t)">${new Date(a.fecha).toLocaleString('es-AR',{hour:'2-digit',minute:'2-digit',day:'2-digit',month:'2-digit'})}</div>
+                </div>`).join('')
+            : emptyState('Sin accesos recientes');
+    } catch(e) { alerta('error', e.message); }
+}
+
+// ══════════════════════════════════════════════════════════════
+// DISPOSITIVOS
+// ══════════════════════════════════════════════════════════════
+async function cargarMacsPendientes() {
+    try {
+        const logs = await API.usuarios.logs();
+        const macs = logs.filter(l => l.accion === 'registro_mac_desconocida');
+        const cont = document.getElementById('macsPendientes');
+        if (!macs.length) { cont.style.display = 'none'; return; }
+
+        // Parsear detalle: "MAC desconocida: XX:XX:XX | IP: 192.168.1.X | ensayo: caldera"
+        const parsear = detalle => {
+            const mac    = (detalle.match(/MAC desconocida:\s*([0-9A-Fa-f:]{17})/) || [])[1] || '';
+            const ip     = (detalle.match(/IP:\s*([\d.]+)/)                         || [])[1] || '';
+            const ensayo = (detalle.match(/ensayo:\s*(.+)$/)                         || [])[1] || '';
+            return { mac, ip, ensayo };
+        };
+
+        // Deduplicar por MAC, quedarse con el más reciente
+        const porMac = {};
+        macs.forEach(l => {
+            const { mac } = parsear(l.detalle);
+            if (mac && (!porMac[mac] || l.fecha > porMac[mac].fecha)) porMac[mac] = l;
+        });
+
+        // Filtrar MACs que ya están registradas como dispositivos activos
+        const macsRegistradas = new Set(
+            _disps.filter(d => d.mac).map(d => d.mac.toUpperCase())
+        );
+        const pendientes = Object.values(porMac).filter(l => {
+            const { mac } = parsear(l.detalle);
+            return mac && !macsRegistradas.has(mac.toUpperCase());
+        });
+
+        // Si todas las MACs ya fueron dadas de alta, ocultar el banner
+        if (!pendientes.length) { cont.style.display = 'none'; return; }
+
+        cont.style.display = 'block';
+        cont.innerHTML = `
+            <div style="border:1.5px solid #f59e0b;border-radius:10px;overflow:hidden">
+                <div style="background:#fef3c7;padding:12px 16px;display:flex;align-items:center;gap:10px;border-bottom:1px solid #fde68a">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="#d97706" stroke-width="2" width="18" height="18"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                    <div>
+                        <strong style="font-size:.88rem;color:#92400e">${pendientes.length} ESP32 ${pendientes.length===1?'intentó':'intentaron'} registrarse pero no ${pendientes.length===1?'está':'están'} dado${pendientes.length===1?'':'s'} de alta</strong>
+                        <div style="font-size:.76rem;color:#b45309;margin-top:1px">Hacé click en "Dar de alta" para registrar el dispositivo</div>
+                    </div>
+                </div>
+                <div style="background:white">
+                ${pendientes.map(l => {
+                    const { mac, ip, ensayo } = parsear(l.detalle);
+                    const fecha = new Date(l.fecha).toLocaleString('es-AR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
+                    return `
+                    <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 16px;border-bottom:1px solid #f4f6f8;gap:12px">
+                        <div style="display:flex;flex-direction:column;gap:3px;min-width:0">
+                            <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+                                <code style="font-size:.85rem;font-weight:700;color:#1e293b">${mac}</code>
+                                ${ensayo ? `<span style="font-size:.75rem;background:#e0e7ff;color:#3730a3;padding:1px 7px;border-radius:9px">${ensayo}</span>` : ''}
+                            </div>
+                            <div style="font-size:.76rem;color:var(--gris-t)">IP: ${ip||'—'} · Último intento: ${fecha}</div>
+                        </div>
+                        <button class="btn btn-primary btn-sm" style="flex-shrink:0" onclick="altaDesdeMAC('${mac}','${ip}')">
+                            + Dar de alta
+                        </button>
+                    </div>`;
+                }).join('')}
+                </div>
+            </div>`;
+    } catch {}
+}
+
+function altaDesdeMAC(mac, ip) {
+    if(!_mats.length) API.dispositivos.materias().then(m=>{ _mats=m; abrirModalDisp(mac, ip); }).catch(()=>abrirModalDisp(mac, ip));
+    else abrirModalDisp(mac, ip);
+}
+
+async function cargarDisps() {
+    try {
+        _disps = await API.dispositivos.listar();
+        _mats  = await API.dispositivos.materias();
+        document.getElementById('badge-disp').textContent = _disps.length;
+        await cargarMacsPendientes();
+        const cont = document.getElementById('tablaDisp');
+        if(!_disps.length){cont.innerHTML=emptyState('No hay dispositivos registrados.');return;}
+        cont.innerHTML = `<table class="table"><thead><tr><th>Estado</th><th>Nombre</th><th>IP</th><th>MAC</th><th>Materia</th><th>Descripción</th><th>Acciones</th></tr></thead><tbody>
+        ${_disps.map(d=>`<tr>
+            <td><span class="badge ${d.online?'badge-online':'badge-offline'}"><svg viewBox="0 0 24 24" width="7" height="7" fill="${d.online?'#16a34a':'#94a3b8'}"><circle cx="12" cy="12" r="12"/></svg>${d.online?'Online':'Offline'}</span></td>
+            <td><strong>${d.nombre}</strong></td><td><code>${d.ip||'<span style="color:var(--gris-t)">—</span>'}</code></td>
+            <td><code style="font-size:.75rem;color:${d.mac?'inherit':'var(--gris-t)'}">${d.mac||'sin MAC'}</code></td>
+            <td>${d.materia_nombre||'<span style="color:var(--gris-t)">—</span>'}</td>
+            <td style="color:var(--gris-t)">${d.descripcion||'—'}</td>
+            <td style="display:flex;gap:4px">
+                <button class="btn btn-secondary btn-sm" onclick="editarDisp(${d.id})">✏</button>
+                <button class="btn btn-danger btn-sm" onclick="eliminarDisp(${d.id},'${d.nombre.replace(/'/g,"\\'")}')">🗑</button>
+            </td></tr>`).join('')}
+        </tbody></table>`;
+    } catch(e){ alerta('error',e.message); }
+}
+
+async function pingTodos() {
+    alerta('info','Verificando estado de los dispositivos...');
+    await Promise.all(_disps.map(d=>API.dispositivos.ping(d.id).catch(()=>{})));
+    await cargarDisps(); alerta('success','Estado actualizado.');
+}
+
+function abrirModalDisp(preMAC='', preIP='', desdeEscaneo=false) {
+    ['dispId','dispNombre','dispIP','dispMAC','dispDesc'].forEach(id=>document.getElementById(id).value='');
+    if(preMAC) document.getElementById('dispMAC').value=preMAC;
+    if(preIP)  document.getElementById('dispIP').value=preIP;
+    document.getElementById('modalDispTitle').textContent='Nuevo Dispositivo ESP32';
+    // Mostrar hint según origen
+    document.getElementById('dispMACHint').style.display        = desdeEscaneo ? 'none' : 'block';
+    document.getElementById('dispMACHintEscaneo').style.display = desdeEscaneo ? 'block' : 'none';
+    API.poblarSelect('dispMateria',_mats,'id','nombre');
+    abrirModal('modalDisp');
+}
+
+function editarDisp(id) {
+    const d=_disps.find(x=>x.id===id); if(!d) return;
+    document.getElementById('dispId').value=d.id;
+    document.getElementById('dispNombre').value=d.nombre;
+    document.getElementById('dispIP').value=d.ip||'';
+    document.getElementById('dispMAC').value=d.mac||'';
+    document.getElementById('dispDesc').value=d.descripcion||'';
+    document.getElementById('modalDispTitle').textContent='Editar Dispositivo';
+    document.getElementById('dispMACHint').style.display        = 'block';
+    document.getElementById('dispMACHintEscaneo').style.display = 'none';
+    API.poblarSelect('dispMateria',_mats,'id','nombre');
+    document.getElementById('dispMateria').value=d.materia_id||'';
+    abrirModal('modalDisp');
+}
+
+async function guardarDisp() {
+    const id=document.getElementById('dispId').value,
+          nombre=document.getElementById('dispNombre').value.trim(),
+          ip=document.getElementById('dispIP').value.trim(),
+          mac=document.getElementById('dispMAC').value.trim(),
+          desc=document.getElementById('dispDesc').value.trim(),
+          mat=document.getElementById('dispMateria').value;
+    if(!nombre) return alerta('error','El nombre es requerido.');
+    try {
+        id ? await API.dispositivos.actualizar(id,{nombre,ip:ip||undefined,mac:mac||undefined,descripcion:desc,materia_id:mat||null})
+           : await API.dispositivos.crear({nombre,ip:ip||undefined,mac:mac||undefined,descripcion:desc,materia_id:mat||null});
+        cerrarModal('modalDisp'); alerta('success','Dispositivo guardado.'); cargarDisps();
+    } catch(e){ alerta('error',e.message); }
+}
+
+async function eliminarDisp(id,nombre) {
+    if(!confirm(`¿Desactivar "${nombre}"?`)) return;
+    try { await API.dispositivos.eliminar(id); alerta('success','Dispositivo desactivado.'); cargarDisps(); }
+    catch(e){ alerta('error',e.message); }
+}
+
+// ══════════════════════════════════════════════════════════════
+// PRÁCTICAS
+// ══════════════════════════════════════════════════════════════
+async function cargarPracs() {
+    try {
+        const lista = await API.practicas.listar();
+        if(!_mats.length) _mats=await API.dispositivos.materias();
+        if(!_disps.length) _disps=await API.dispositivos.listar();
+        document.getElementById('badge-prac').textContent = lista.length;
+        const cont = document.getElementById('tablaPrac');
+        if(!lista.length){cont.innerHTML=emptyState('No hay prácticas registradas.');return;}
+        cont.innerHTML = `<table class="table"><thead><tr><th>Título</th><th>Materia</th><th>Dispositivo</th><th>ESP32</th><th>Acciones</th></tr></thead><tbody>
+        ${lista.map(p=>`<tr>
+            <td><strong>${p.titulo}</strong>${p.descripcion?`<br><small style="color:var(--gris-t)">${p.descripcion}</small>`:''}</td>
+            <td>${p.materia_nombre||'—'}</td><td>${p.dispositivo_nombre||'—'}</td>
+            <td><span class="badge ${p.online?'badge-online':'badge-offline'}">${p.online?'Online':'Offline'}</span></td>
+            <td style="display:flex;gap:4px">
+                ${p.online ? `<button class="btn btn-sm" style="background:#0a1e3d;color:white;border:none" onclick="previsualizarPrac(${p.id},'${p.titulo.replace(/'/g,"\\'")}','${p.materia_nombre||''}',${p.dispositivo_id})">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                    Vista previa
+                </button>` : `<button class="btn btn-sm" style="background:#f1f5f9;color:#94a3b8;border:1px solid #e2e8f0;cursor:not-allowed" disabled title="Dispositivo offline">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                    Offline
+                </button>`}
+                <button class="btn btn-secondary btn-sm" onclick="editarPrac(${p.id})">✏</button>
+                <button class="btn btn-danger btn-sm" onclick="eliminarPrac(${p.id},'${p.titulo.replace(/'/g,"\\'")}')">🗑</button>
+            </td></tr>`).join('')}
+        </tbody></table>`;
+    } catch(e){ alerta('error',e.message); }
+}
+
+function abrirModalPrac() {
+    ['pracId','pracTitulo','pracDesc'].forEach(id=>document.getElementById(id).value='');
+    document.getElementById('modalPracTitle').textContent='Nueva Práctica';
+    API.poblarSelect('pracMateria',_mats,'id','nombre');
+    API.poblarSelect('pracDisp',_disps,'id','nombre');
+    abrirModal('modalPrac');
+}
+
+async function editarPrac(id) {
+    const lista=await API.practicas.listar(); const p=lista.find(x=>x.id===id); if(!p) return;
+    document.getElementById('pracId').value=p.id;
+    document.getElementById('pracTitulo').value=p.titulo;
+    document.getElementById('pracDesc').value=p.descripcion||'';
+    document.getElementById('modalPracTitle').textContent='Editar Práctica';
+    API.poblarSelect('pracMateria',_mats,'id','nombre');
+    API.poblarSelect('pracDisp',_disps,'id','nombre');
+    document.getElementById('pracMateria').value=p.materia_id||'';
+    document.getElementById('pracDisp').value=p.dispositivo_id||'';
+    abrirModal('modalPrac');
+}
+
+async function guardarPrac() {
+    const id=document.getElementById('pracId').value, titulo=document.getElementById('pracTitulo').value.trim(),
+          mat=document.getElementById('pracMateria').value, disp=document.getElementById('pracDisp').value,
+          desc=document.getElementById('pracDesc').value.trim();
+    if(!titulo||!mat||!disp) return alerta('error','Título, materia y dispositivo son requeridos.');
+    try {
+        id ? await API.practicas.actualizar(id,{titulo,materia_id:mat,dispositivo_id:disp,descripcion:desc})
+           : await API.practicas.crear({titulo,materia_id:mat,dispositivo_id:disp,descripcion:desc});
+        cerrarModal('modalPrac'); alerta('success','Práctica guardada.'); cargarPracs();
+    } catch(e){ alerta('error',e.message); }
+}
+
+async function previsualizarPrac(pracId, titulo, materia, dispId) {
+    // Obtener IP real del dispositivo
+    let ip;
+    try {
+        const p = await API.practicas.obtener(pracId);
+        dispId = p.dispositivo_id;
+        ip     = p.ip;
+        if (!ip) { alerta('error', 'El dispositivo no tiene IP asignada.'); return; }
+        const ping = await API.dispositivos.ping(dispId);
+        if (!ping.online) { alerta('error', 'El dispositivo no responde.'); await cargarPracs(); return; }
+    } catch(e) { alerta('error', e.message); return; }
+
+    document.getElementById('previewTitulo').textContent  = titulo;
+    document.getElementById('previewMateria').textContent = materia || '—';
+    // Conectar DIRECTO a la IP del ESP32 — sin proxy
+    document.getElementById('previewFrame').src = `http://${ip}/`;
+
+    clearInterval(window._previewInterval);
+    window._previewInterval = setInterval(async () => {
+        try {
+            const ping  = await API.dispositivos.ping(dispId);
+            const badge = document.getElementById('previewBadge');
+            badge.className   = `badge ${ping.online ? 'badge-online' : 'badge-offline'}`;
+            badge.textContent = ping.online ? '● Online' : '● Offline';
+        } catch {}
+    }, 15000);
+
+    abrirModal('modalPreview');
+}
+
+function cerrarPreview() {
+    clearInterval(window._previewInterval);
+    document.getElementById('previewFrame').src = '';
+    cerrarModal('modalPreview');
+}
+
+async function eliminarPrac(id,titulo) {
+    if(!confirm(`¿Eliminar "${titulo}"?`)) return;
+    try { await API.practicas.eliminar(id); alerta('success','Práctica eliminada.'); cargarPracs(); }
+    catch(e){ alerta('error',e.message); }
+}
+
+// ══════════════════════════════════════════════════════════════
+// MATERIAS
+// ══════════════════════════════════════════════════════════════
+async function cargarMats() {
+    try {
+        const lista = await API.materias.listar();
+        document.getElementById('badge-mat').textContent = lista.length;
+        const cont = document.getElementById('tablaMat');
+        if(!lista.length){cont.innerHTML=emptyState('No hay materias registradas.');return;}
+        cont.innerHTML = `<table class="table"><thead><tr><th>Nombre</th><th>Descripción</th><th>Prácticas</th><th>Profesores</th><th>Acciones</th></tr></thead><tbody>
+        ${lista.map(m=>`<tr>
+            <td><strong>${m.nombre}</strong></td>
+            <td style="color:var(--gris-t)">${m.descripcion||'—'}</td>
+            <td><span class="badge badge-blue">${m.total_practicas}</span></td>
+            <td><span class="badge badge-blue">${m.total_profesores}</span></td>
+            <td style="display:flex;gap:4px">
+                <button class="btn btn-secondary btn-sm" onclick="editarMat(${m.id},'${m.nombre.replace(/'/g,"\\'")}','${(m.descripcion||'').replace(/'/g,"\\'")}')">✏</button>
+                <button class="btn btn-danger btn-sm" onclick="eliminarMat(${m.id},'${m.nombre.replace(/'/g,"\\'")}')">🗑</button>
+            </td></tr>`).join('')}
+        </tbody></table>`;
+    } catch(e){ alerta('error',e.message); }
+}
+
+function abrirModalMat() {
+    ['matId','matNombre','matDesc'].forEach(id=>document.getElementById(id).value='');
+    document.getElementById('modalMatTitle').textContent='Nueva Materia';
+    abrirModal('modalMat');
+}
+
+function editarMat(id,nombre,desc) {
+    document.getElementById('matId').value=id;
+    document.getElementById('matNombre').value=nombre;
+    document.getElementById('matDesc').value=desc;
+    document.getElementById('modalMatTitle').textContent='Editar Materia';
+    abrirModal('modalMat');
+}
+
+async function guardarMat() {
+    const id=document.getElementById('matId').value, nombre=document.getElementById('matNombre').value.trim(),
+          desc=document.getElementById('matDesc').value.trim();
+    if(!nombre) return alerta('error','El nombre es requerido.');
+    try {
+        id ? await API.materias.actualizar(id,{nombre,descripcion:desc})
+           : await API.materias.crear({nombre,descripcion:desc});
+        cerrarModal('modalMat'); alerta('success','Materia guardada.'); cargarMats();
+    } catch(e){ alerta('error',e.message); }
+}
+
+async function eliminarMat(id,nombre) {
+    if(!confirm(`¿Desactivar la materia "${nombre}"?`)) return;
+    try { await API.materias.eliminar(id); alerta('success','Materia desactivada.'); cargarMats(); }
+    catch(e){ alerta('error',e.message); }
+}
+
+// ══════════════════════════════════════════════════════════════
+// USUARIOS
+// ══════════════════════════════════════════════════════════════
+async function cargarUsrs() {
+    try {
+        const lista = await API.usuarios.listar();
+        _matsModal   = await API.materias.listar();
+        document.getElementById('badge-usr').textContent = lista.length;
+        const cont = document.getElementById('tablaUsr');
+        if(!lista.length){cont.innerHTML=emptyState('No hay usuarios registrados.');return;}
+        cont.innerHTML = `<table class="table"><thead><tr><th>Nombre</th><th>Email</th><th>Rol</th><th>Estado</th><th>Acciones</th></tr></thead><tbody>
+        ${lista.map(u=>`<tr>
+            <td><strong>${u.nombre}</strong></td><td>${u.email}</td>
+            <td><span class="badge badge-blue">${u.rol==='tecnico'?'Técnico':'Profesor'}</span></td>
+            <td><span class="badge ${u.activo?'badge-online':'badge-offline'}">${u.activo?'Activo':'Inactivo'}</span></td>
+            <td style="display:flex;gap:4px">
+                <button class="btn btn-secondary btn-sm" onclick="editarUsr(${u.id})">✏ Editar</button>
+                <button class="btn btn-danger btn-sm" onclick="toggleUsr(${u.id},${u.activo},'${u.nombre.replace(/'/g,"\\'")}')">
+                    ${u.activo?'Desactivar':'Activar'}
+                </button>
+            </td></tr>`).join('')}
+        </tbody></table>`;
+    } catch(e){ alerta('error',e.message); }
+}
+
+function abrirModalUsr() {
+    _usrEditId=null; _matsTemp=[];
+    ['usrNombre','usrEmail','usrPass'].forEach(id=>document.getElementById(id).value='');
+    document.getElementById('usrRol').value='profesor';
+    document.getElementById('modalUsrTitle').textContent='Nuevo Usuario';
+    document.getElementById('campoPass').style.display='block';
+    API.poblarSelect('selectMateriaUsr',_matsModal,'id','nombre');
+    renderChips(); toggleMaterias(); abrirModal('modalUsr');
+}
+
+async function editarUsr(id) {
+    const lista=await API.usuarios.listar(); const u=lista.find(x=>x.id===id); if(!u) return;
+    _usrEditId=id;
+    document.getElementById('usrNombre').value=u.nombre;
+    document.getElementById('usrEmail').value=u.email;
+    document.getElementById('usrPass').value='';
+    document.getElementById('usrRol').value=u.rol;
+    document.getElementById('modalUsrTitle').textContent='Editar Usuario';
+    _matsTemp = u.rol==='profesor' ? await API.usuarios.materias(id) : [];
+    API.poblarSelect('selectMateriaUsr',_matsModal,'id','nombre');
+    renderChips(); toggleMaterias(); abrirModal('modalUsr');
+}
+
+function toggleMaterias() {
+    document.getElementById('secMaterias').style.display = document.getElementById('usrRol').value==='profesor'?'block':'none';
+}
+
+function renderChips() {
+    const cont = document.getElementById('chipsMateria');
+    cont.innerHTML = _matsTemp.length
+        ? _matsTemp.map(m=>`<span class="chip">${m.nombre}<button class="chip-remove" onclick="quitarChip(${m.id})">×</button></span>`).join('')
+        : '<span style="font-size:.82rem;color:var(--gris-t)">Sin materias asignadas</span>';
+}
+
+function asignarChip() {
+    const sel=document.getElementById('selectMateriaUsr');
+    const id=parseInt(sel.value); if(!id||_matsTemp.find(m=>m.id===id)) return;
+    const m=_matsModal.find(m=>m.id===id);
+    if(m){ _matsTemp.push(m); renderChips(); }
+}
+
+function quitarChip(id) { _matsTemp=_matsTemp.filter(m=>m.id!==id); renderChips(); }
+
+async function guardarUsr() {
+    const nombre=document.getElementById('usrNombre').value.trim(),
+          email=document.getElementById('usrEmail').value.trim(),
+          pass=document.getElementById('usrPass').value,
+          rol=document.getElementById('usrRol').value;
+    if(!nombre||!email) return alerta('error','Nombre y email son requeridos.');
+    if(!_usrEditId&&!pass) return alerta('error','La contraseña es requerida.');
+    try {
+        let uid=_usrEditId;
+        if(_usrEditId) { await API.usuarios.actualizar(_usrEditId,{nombre,email,...(pass?{password:pass}:{})}); }
+        else { const r=await API.usuarios.crear({nombre,email,password:pass,rol}); uid=r.id; }
+        if(rol==='profesor'&&uid) {
+            const act=_usrEditId?await API.usuarios.materias(uid):[];
+            await Promise.all(act.filter(m=>!_matsTemp.find(t=>t.id===m.id)).map(m=>API.usuarios.quitarMateria(uid,m.id)));
+            await Promise.all(_matsTemp.filter(m=>!act.find(a=>a.id===m.id)).map(m=>API.usuarios.asignarMateria(uid,m.id)));
+        }
+        cerrarModal('modalUsr'); alerta('success',`Usuario ${_usrEditId?'actualizado':'creado'}.`); cargarUsrs();
+    } catch(e){ alerta('error',e.message); }
+}
+
+async function toggleUsr(id,activo,nombre) {
+    if(!confirm(`¿${activo?'Desactivar':'Activar'} a "${nombre}"?`)) return;
+    try { await API.usuarios.actualizar(id,{activo:activo?0:1}); alerta('success','Usuario actualizado.'); cargarUsrs(); }
+    catch(e){ alerta('error',e.message); }
+}
+
+// ══════════════════════════════════════════════════════════════
+// LOGS
+// ══════════════════════════════════════════════════════════════
+async function cargarLogs() {
+    try {
+        const logs=await API.usuarios.logs();
+        const cont=document.getElementById('tablaLogs');
+        if(!logs.length){cont.innerHTML=emptyState('Sin actividad registrada.');return;}
+        const tipoBadge = a => a==='login'?'badge-blue':a==='acceso_practica'?'badge-online':'badge-warn';
+        const tipoLabel = a => a==='login'?'Login':a==='acceso_practica'?'Práctica':a==='cambio_password'?'Contraseña':a;
+        cont.innerHTML = `<table class="table"><thead><tr><th>Fecha</th><th>Usuario</th><th>Rol</th><th>Acción</th><th>Detalle</th></tr></thead><tbody>
+        ${logs.map(l=>`<tr>
+            <td style="color:var(--gris-t);font-size:.82rem">${new Date(l.fecha).toLocaleString('es-AR')}</td>
+            <td>${l.usuario_nombre||'—'}</td>
+            <td><span class="badge badge-blue" style="font-size:.68rem">${l.rol||'—'}</span></td>
+            <td><span class="badge ${tipoBadge(l.accion)}">${tipoLabel(l.accion)}</span></td>
+            <td style="color:var(--gris-t);font-size:.84rem">${l.practica_titulo||l.detalle||'—'}</td>
+        </tr>`).join('')}
+        </tbody></table>`;
+    } catch(e){ alerta('error',e.message); }
+}
+
+// ══════════════════════════════════════════════════════════════
+// CONTRASEÑA
+// ══════════════════════════════════════════════════════════════
+async function cambiarPassword() {
+    const actual=document.getElementById('passActual').value,
+          nueva=document.getElementById('passNueva').value,
+          conf=document.getElementById('passConfirm').value;
+    if(!actual||!nueva||!conf) return alerta('error','Todos los campos son requeridos.','alertaPass');
+    if(nueva!==conf) return alerta('error','Las contraseñas nuevas no coinciden.','alertaPass');
+    if(nueva.length<6) return alerta('error','Mínimo 6 caracteres.','alertaPass');
+    try {
+        await API.usuarios.cambiarPassword({password_actual:actual,password_nuevo:nueva});
+        ['passActual','passNueva','passConfirm'].forEach(id=>document.getElementById(id).value='');
+        alerta('success','Contraseña actualizada correctamente.','alertaPass');
+    } catch(e){ alerta('error',e.message,'alertaPass'); }
+}
+
+
+// ══════════════════════════════════════════════════════════════
+// ESCANEO DE RED
+// ══════════════════════════════════════════════════════════════
+function abrirModalEscaneo() {
+    // Resetear estado
+    document.getElementById('escaneoConfig').style.display     = 'block';
+    document.getElementById('escaneoProg').style.display       = 'none';
+    document.getElementById('escaneoResultados').style.display = 'none';
+    document.getElementById('escaneoAcciones').style.display   = 'flex';
+    document.getElementById('btnIniciarEscaneo').disabled      = false;
+    document.getElementById('btnIniciarEscaneo').textContent   = 'Iniciar escaneo';
+    abrirModal('modalEscaneo');
+}
+
+async function iniciarEscaneo() {
+    const base  = document.getElementById('escaneoBase').value.trim();
+    const desde = parseInt(document.getElementById('escaneoDesde').value);
+    const hasta = parseInt(document.getElementById('escaneoHasta').value);
+
+    if (!base || isNaN(desde) || isNaN(hasta) || desde > hasta) {
+        return alerta('error', 'Rango inválido. Verificá los valores ingresados.');
+    }
+
+    // Mostrar progreso
+    document.getElementById('escaneoConfig').style.display     = 'none';
+    document.getElementById('escaneoProg').style.display       = 'block';
+    document.getElementById('escaneoResultados').style.display = 'none';
+    document.getElementById('btnIniciarEscaneo').disabled      = true;
+    document.getElementById('btnIniciarEscaneo').textContent   = 'Escaneando...';
+
+    // Animación de progreso indeterminada mientras espera respuesta
+    const progBar   = document.getElementById('escaneoProgBar');
+    const progLabel = document.getElementById('escaneoProgLabel');
+    const progSub   = document.getElementById('escaneoProgSub');
+    const total     = hasta - desde + 1;
+
+    progBar.style.width     = '0%';
+    progLabel.textContent   = '0%';
+    progSub.textContent     = `Escaneando ${base}.${desde} – ${base}.${hasta} (${total} IPs)...`;
+
+    // Animación de carga mientras el servidor trabaja
+    let animPct = 0;
+    const anim = setInterval(() => {
+        animPct = Math.min(animPct + (Math.random() * 3), 90);
+        progBar.style.width   = animPct.toFixed(0) + '%';
+        progLabel.textContent = animPct.toFixed(0) + '%';
+    }, 400);
+
+    try {
+        const resultado = await API.sa.diag.escanearRed({ base, desde, hasta });
+
+        clearInterval(anim);
+        progBar.style.width   = '100%';
+        progLabel.textContent = '100%';
+        progSub.textContent   = `Escaneo completado — ${resultado.encontrados} ESP32 encontrados`;
+
+        setTimeout(() => mostrarResultadosEscaneo(resultado), 400);
+
+    } catch(e) {
+        clearInterval(anim);
+        progBar.style.width             = '0%';
+        document.getElementById('escaneoConfig').style.display = 'block';
+        document.getElementById('escaneoProg').style.display   = 'none';
+        document.getElementById('btnIniciarEscaneo').disabled  = false;
+        document.getElementById('btnIniciarEscaneo').textContent = 'Iniciar escaneo';
+        alerta('error', 'Error durante el escaneo: ' + e.message);
+    }
+}
+
+function mostrarResultadosEscaneo(r) {
+    document.getElementById('escaneoProg').style.display       = 'none';
+    document.getElementById('escaneoResultados').style.display = 'block';
+
+    const cont = document.getElementById('escaneoResultados');
+
+    if (r.encontrados === 0) {
+        cont.innerHTML = `
+            <div style="text-align:center;padding:20px 0;color:var(--gris-t)">
+                <div style="font-size:2rem;margin-bottom:8px">🔍</div>
+                <div style="font-weight:600;margin-bottom:4px">No se encontraron ESP32</div>
+                <div style="font-size:.8rem">Ningún dispositivo respondió en el rango ${r.rango}</div>
+            </div>`;
+    } else {
+        let html = `<div style="font-size:.82rem;color:var(--gris-t);margin-bottom:12px">
+            Rango escaneado: <strong>${r.rango}</strong> · ${r.total_ips} IPs · <strong>${r.encontrados} ESP32</strong> encontrados
+        </div>`;
+
+        // Nuevos (no registrados)
+        if (r.nuevos.length > 0) {
+            html += `<div style="font-size:.78rem;font-weight:700;color:#92400e;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px">
+                ⚠ ${r.nuevos.length} nuevo${r.nuevos.length > 1 ? 's' : ''} — no dado${r.nuevos.length > 1 ? 's' : ''} de alta
+            </div>`;
+            html += `<div style="border:1.5px solid #f59e0b;border-radius:8px;overflow:hidden;margin-bottom:14px">`;
+            r.nuevos.forEach(d => {
+                html += `
+                <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;border-bottom:1px solid #fde68a;background:#fffbeb;gap:10px">
+                    <div>
+                        <code style="font-weight:700;color:#1e293b">${d.ip}</code>
+                        ${d.mac ? `<code style="font-size:.78rem;color:#b45309;margin-left:8px">${d.mac}</code>` : ''}
+                        ${d.ensayo_id ? `<span style="font-size:.73rem;background:#e0e7ff;color:#3730a3;padding:1px 7px;border-radius:9px;margin-left:6px">${d.ensayo_id}</span>` : ''}
+                        <div style="font-size:.75rem;color:#b45309;margin-top:2px">
+                            ${d.sin_mac ? '⚠ Firmware sin MAC — completala al dar de alta' : 'Sin registrar en el sistema'}
+                        </div>
+                    </div>
+                    <button class="btn btn-primary btn-sm" onclick="altaDesdeEscaneo('${d.ip}','${d.mac||''}',${d.sin_mac})">+ Dar de alta</button>
+                </div>`;
+            });
+            html += `</div>`;
+        }
+
+        // Conocidos (ya registrados)
+        if (r.conocidos.length > 0) {
+            html += `<div style="font-size:.78rem;font-weight:700;color:var(--gris-t);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px">
+                ✓ ${r.conocidos.length} ya registrado${r.conocidos.length > 1 ? 's' : ''}
+            </div>`;
+            html += `<div style="border:1px solid var(--gris-b);border-radius:8px;overflow:hidden">`;
+            r.conocidos.forEach(d => {
+                html += `
+                <div style="display:flex;align-items:center;justify-content:space-between;padding:9px 14px;border-bottom:1px solid var(--gris-bg);gap:10px">
+                    <div>
+                        <strong style="font-size:.85rem">${d.nombre}</strong>
+                        <code style="font-size:.78rem;color:var(--gris-t);margin-left:8px">${d.ip}</code>
+                        ${d.mac ? `<code style="font-size:.72rem;color:var(--gris-t);margin-left:6px">${d.mac}</code>` : ''}
+                    </div>
+                    <span class="badge badge-online" style="font-size:.7rem">Registrado</span>
+                </div>`;
+            });
+            html += `</div>`;
+        }
+
+        cont.innerHTML = html;
+    }
+
+    // Cambiar botón a "Nuevo escaneo"
+    document.getElementById('btnIniciarEscaneo').disabled    = false;
+    document.getElementById('btnIniciarEscaneo').textContent = 'Nuevo escaneo';
+    document.getElementById('btnIniciarEscaneo').onclick     = () => {
+        document.getElementById('escaneoConfig').style.display     = 'block';
+        document.getElementById('escaneoResultados').style.display = 'none';
+        document.getElementById('escaneoProg').style.display       = 'none';
+        document.getElementById('btnIniciarEscaneo').textContent   = 'Iniciar escaneo';
+        document.getElementById('btnIniciarEscaneo').onclick       = iniciarEscaneo;
+    };
+}
+
+function altaDesdeEscaneo(ip, mac, sinMac) {
+    cerrarModal('modalEscaneo');
+    const preMAC = mac || '';
+    const desdeEscaneoSinMAC = sinMac || !mac;
+    if(!_mats.length) API.dispositivos.materias().then(m => { _mats = m; abrirModalDisp(preMAC, ip, desdeEscaneoSinMAC); }).catch(() => abrirModalDisp(preMAC, ip, desdeEscaneoSinMAC));
+    else abrirModalDisp(preMAC, ip, desdeEscaneoSinMAC);
+}
+
+// ── Iniciar ───────────────────────────────────────────────────
+cargarDashboard();
+typeof Ayuda !== "undefined" && Ayuda.crear('tecnico');
+typeof Ayuda !== "undefined" && Ayuda.actualizar('tecnico', 'dashboard');
+
+// Cargar badges de todas las secciones al iniciar
+(async () => {
+    try {
+        const [disps, pracs, mats, usrs] = await Promise.all([
+            API.dispositivos.listar(),
+            API.practicas.listar(),
+            API.materias.listar(),
+            API.usuarios.listar(),
+        ]);
+        _dispositivos = disps;
+        _mats         = await API.dispositivos.materias();
+        document.getElementById('badge-disp').textContent = disps.length;
+        document.getElementById('badge-prac').textContent = pracs.length;
+        document.getElementById('badge-mat').textContent  = mats.length;
+        document.getElementById('badge-usr').textContent  = usrs.length;
+    } catch {}
+})();
+</script>
+<script>
+// Cargar ayuda.js de forma opcional — si no existe no rompe nada
+(function() {
+    var s = document.createElement('script');
+    s.src = 'assets/js/ayuda.js';
+    s.onerror = function() {}; // silencioso si no existe
+    document.body.appendChild(s);
+})();
+</script>
+
+<!-- MODAL VISTA PREVIA ESP32 -->
+<div class="modal-overlay" id="modalPreview" style="padding:20px">
+    <div class="modal-box" style="max-width:960px;width:100%;max-height:88vh;display:flex;flex-direction:column;padding:0;overflow:hidden">
+        <div style="background:var(--azul);padding:14px 20px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0">
+            <div>
+                <div style="font-size:.7rem;text-transform:uppercase;letter-spacing:.06em;color:rgba(255,255,255,.5);margin-bottom:3px" id="previewMateria">—</div>
+                <div style="font-size:1rem;font-weight:700;color:white" id="previewTitulo">—</div>
+            </div>
+            <div style="display:flex;align-items:center;gap:10px">
+                <span class="badge badge-online" id="previewBadge">● Online</span>
+                <button onclick="document.getElementById('previewFrame').src=document.getElementById('previewFrame').src"
+                        style="background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);color:white;border-radius:6px;padding:5px 12px;cursor:pointer;font-size:.8rem;font-family:inherit">
+                    ↻ Recargar
+                </button>
+                <button onclick="cerrarPreview()"
+                        style="background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);color:white;border-radius:6px;padding:5px 12px;cursor:pointer;font-size:.8rem;font-family:inherit">
+                    ✕ Cerrar
+                </button>
+            </div>
+        </div>
+        <iframe id="previewFrame" src="" frameborder="0"
+                style="flex:1;width:100%;min-height:480px;background:white;border:none"
+                sandbox="allow-forms allow-scripts allow-same-origin allow-popups">
+        </iframe>
+        <div style="background:#f4f6f8;border-top:1px solid var(--gris-b);padding:8px 20px;font-size:.76rem;color:var(--gris-t);display:flex;justify-content:space-between;flex-shrink:0">
+            <span>Vista previa — exactamente como la ve el profesor</span>
+            <span>Estado de conexión se actualiza cada 15 segundos</span>
+        </div>
+    </div>
+</div>
+
+
+<!-- MODAL ESCANEO DE RED -->
+<div class="modal-overlay" id="modalEscaneo">
+    <div class="modal-box" style="max-width:560px">
+        <div class="modal-title">Escanear red — buscar ESP32</div>
+
+        <!-- Configuración del rango -->
+        <div id="escaneoConfig">
+            <p style="font-size:.83rem;color:var(--gris-t);margin-bottom:14px">
+                El sistema intentará conectarse a cada IP del rango indicado
+                y detectará los dispositivos ESP32 que respondan.
+            </p>
+            <div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap">
+                <div class="field-group" style="flex:2;margin-bottom:0">
+                    <label class="field-label">Red base</label>
+                    <input type="text" id="escaneoBase" class="field-input" value="192.168.1" placeholder="192.168.1">
+                </div>
+                <div class="field-group" style="flex:1;margin-bottom:0">
+                    <label class="field-label">Desde</label>
+                    <input type="number" id="escaneoDesde" class="field-input" value="40" min="1" max="254">
+                </div>
+                <div class="field-group" style="flex:1;margin-bottom:0">
+                    <label class="field-label">Hasta</label>
+                    <input type="number" id="escaneoHasta" class="field-input" value="60" min="1" max="254">
+                </div>
+            </div>
+            <div style="font-size:.76rem;color:var(--gris-t);margin-top:8px">
+                Rango 40–60 tarda ~3 seg. El rango completo 1–254 tarda ~20 seg.
+            </div>
+        </div>
+
+        <!-- Progreso -->
+        <div id="escaneoProg" style="display:none;margin-top:16px">
+            <div style="display:flex;justify-content:space-between;font-size:.82rem;color:var(--gris-t);margin-bottom:6px">
+                <span>Escaneando red...</span>
+                <span id="escaneoProgLabel">0%</span>
+            </div>
+            <div style="background:#f1f5f9;border-radius:6px;height:8px;overflow:hidden">
+                <div id="escaneoProgBar" style="height:100%;background:var(--azul);border-radius:6px;width:0%;transition:width .3s"></div>
+            </div>
+            <div style="font-size:.76rem;color:var(--gris-t);margin-top:6px" id="escaneoProgSub">Preparando escaneo...</div>
+        </div>
+
+        <!-- Resultados -->
+        <div id="escaneoResultados" style="display:none;margin-top:16px"></div>
+
+        <div class="modal-actions" id="escaneoAcciones">
+            <button class="btn btn-secondary btn-sm" onclick="cerrarModal('modalEscaneo')">Cancelar</button>
+            <button class="btn btn-primary btn-sm" id="btnIniciarEscaneo" onclick="iniciarEscaneo()">Iniciar escaneo</button>
+        </div>
+    </div>
+</div>
+</body>
+</html>

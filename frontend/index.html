@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistema de Laboratorio</title>
+    <link rel="stylesheet" href="assets/css/main.css">
+</head>
+<body class="login-page">
+
+<div class="login-wrap">
+
+    <!-- Panel izquierdo -->
+    <div class="login-left">
+        <div class="login-left-content">
+            <img src="https://udemm.edu.ar/wp-content/uploads/2024/01/Udemm-Logo.webp"
+                 alt="UdeMM"
+                 style="width:150px;height:auto;filter:brightness(0) invert(1);opacity:.92;margin-bottom:20px;display:block"
+                 onerror="this.style.display='none'">
+            <h1 class="login-brand-title">Laboratorio<br>de Ingeniería</h1>
+            <p class="login-brand-sub">Sistema de Gestión de Prácticas</p>
+            <div class="login-divider"></div>
+            <p class="login-brand-desc">Acceso centralizado a todos los dispositivos y prácticas del laboratorio.</p>
+        </div>
+        <div class="login-brand-footer">Universidad de la Marina Mercante</div>
+    </div>
+
+    <!-- Panel derecho -->
+    <div class="login-right">
+        <div class="login-form-wrap">
+            <h2 class="login-title">Iniciar sesión</h2>
+            <p class="login-subtitle">Ingrese sus credenciales para continuar</p>
+
+            <div id="alertLogin" class="alert alert-error" style="display:none">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                <span id="alertMsg">Credenciales incorrectas.</span>
+            </div>
+
+            <form id="formLogin">
+                <div class="field-group">
+                    <label class="field-label" for="email">Correo electrónico</label>
+                    <input type="email" id="email" class="field-input"
+                           placeholder="usuario@facultad.edu" required autocomplete="email">
+                </div>
+                <div class="field-group">
+                    <label class="field-label" for="password">Contraseña</label>
+                    <input type="password" id="password" class="field-input"
+                           placeholder="••••••••" required autocomplete="current-password">
+                </div>
+                <button type="submit" class="btn btn-primary btn-full" id="btnLogin">
+                    <span id="btnText">Ingresar</span>
+                    <span id="btnLoading" style="display:none">Verificando...</span>
+                </button>
+            </form>
+
+            <p class="login-hint">
+                Si no recordás tus credenciales, consultá al técnico de laboratorio.
+            </p>
+        </div>
+    </div>
+</div>
+
+<script src="assets/js/api.js"></script>
+<script>
+    document.getElementById('formLogin').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const btnText    = document.getElementById('btnText');
+        const btnLoading = document.getElementById('btnLoading');
+        const alert      = document.getElementById('alertLogin');
+        const alertMsg   = document.getElementById('alertMsg');
+
+        btnText.style.display    = 'none';
+        btnLoading.style.display = 'inline';
+        alert.style.display      = 'none';
+
+        try {
+            const data = await API.login(
+                document.getElementById('email').value,
+                document.getElementById('password').value
+            );
+            localStorage.setItem('token', data.token);
+            localStorage.setItem('usuario', JSON.stringify(data.usuario));
+            if (data.usuario.rol === 'superadmin') {
+                window.location.href = 'panel-superadmin.html';
+            } else if (data.usuario.rol === 'tecnico') {
+                window.location.href = 'panel-tecnico.html';
+            } else {
+                window.location.href = 'panel-profesor.html';
+            }
+        } catch (err) {
+            alertMsg.textContent     = err.message || 'Error al conectar con el servidor.';
+            alert.style.display      = 'flex';
+            btnText.style.display    = 'inline';
+            btnLoading.style.display = 'none';
+        }
+    });
+</script>
+</body>
+</html>
