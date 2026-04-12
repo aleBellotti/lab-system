@@ -66,7 +66,7 @@ lab-system/
 ## 🔌 Cómo agregar un ESP32
 
 1. Conectar el ESP32 a la red local de la facultad.
-2. Anotar su dirección IP (ej: `192.168.1.105`).
+2. Anotar su dirección IP (ej: `192.x.x.x`).
 3. Entrar al sistema como técnico → pestaña **Dispositivos**.
 4. Click en **Nuevo dispositivo** → completar nombre, IP y materia.
 5. Click en **Verificar estado** para confirmar conexión.
