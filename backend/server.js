@@ -179,7 +179,7 @@ app.get('/api/ping/:id', async (req, res) => {
     }
 
     try {
-        const r = await httpGet(dispositivo.ip, 5000);
+        const r = await httpGet(dispositivo.ip, 12000); // 12s para páginas pesadas
 
         db.prepare('UPDATE dispositivos SET online = 1, ultimo_ping = ? WHERE id = ?')
           .run(new Date().toISOString(), id);
@@ -204,7 +204,7 @@ async function pingTodosLosDispositivos() {
 
     for (const disp of dispositivos) {
         try {
-            await httpGet(disp.ip, 5000);
+            await httpGet(disp.ip, 12000); // 12s para páginas pesadas
             db.prepare('UPDATE dispositivos SET online = 1, ultimo_ping = ? WHERE id = ?')
               .run(new Date().toISOString(), disp.id);
             console.log(`✅ Ping OK: ${disp.nombre} (${disp.ip})`);
@@ -216,7 +216,7 @@ async function pingTodosLosDispositivos() {
 }
 
 setTimeout(pingTodosLosDispositivos, 2000);
-setInterval(pingTodosLosDispositivos, 30000);
+setInterval(pingTodosLosDispositivos, 120000); // cada 2 minutos para no interferir con pings manuales
 
 // ─── Inicio ─────────────────────────────────────────────────────
 app.listen(PORT, () => {

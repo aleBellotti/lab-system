@@ -8,12 +8,11 @@
 </head>
 <body style="display:flex;flex-direction:column;height:100vh;overflow:hidden">
 
-<nav class="navbar">
+<nav class="navbar" style="height:42px">
     <div class="navbar-brand" onclick="window.location.href='panel-profesor.html'" style="cursor:pointer">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14" style="color:rgba(255,255,255,.7);flex-shrink:0"><polyline points="15 18 9 12 15 6"/></svg>
-        <img src="https://udemm.edu.ar/wp-content/uploads/2024/01/Udemm-Logo.webp"
-             alt="UdeMM" style="height:24px;filter:brightness(0) invert(1);opacity:.85;flex-shrink:0"
-             onerror="this.style.display='none'">
+        <img src="assets/img/udemm_logo.png"
+             alt="UdeMM" style="height:30px;filter:brightness(0) invert(1);mix-blend-mode:screen;opacity:.9;flex-shrink:0">
         <div>
             <div class="navbar-brand-text">Volver a mis prácticas</div>
             <div class="navbar-brand-sub">Laboratorio de Ingeniería</div>
@@ -36,6 +35,7 @@
             <div>
                 <div class="esp-mat"   id="espMat">—</div>
                 <div class="esp-title" id="espTitle" style="margin-bottom:0">—</div>
+                <div class="esp-sub"   id="espSub" style="font-size:.8rem;color:var(--gris-t);margin-top:2px"></div>
             </div>
             <div style="display:flex;align-items:center;gap:12px">
                 <div style="text-align:right">
@@ -45,9 +45,25 @@
                 <button class="btn btn-secondary btn-sm" onclick="recargar()">↻ Recargar</button>
             </div>
         </div>
+        <!-- Overlay de carga del iframe -->
+        <div id="iframeLoader" style="
+            position:absolute; inset:0; display:flex; flex-direction:column;
+            align-items:center; justify-content:center; gap:14px;
+            background:var(--gris-bg,#f4f6f9); z-index:10;
+            height:calc(100vh - 160px); margin-top:0;">
+            <svg viewBox="0 0 24 24" fill="none" stroke="#6366f1" stroke-width="1.5" width="40" height="40"
+                 style="animation:spin .9s linear infinite">
+                <circle cx="12" cy="12" r="10" stroke-opacity=".25"/>
+                <path d="M12 2a10 10 0 0 1 10 10" stroke-linecap="round"/>
+            </svg>
+            <span style="font-size:.88rem;color:var(--gris-t,#64748b)" id="loaderMsg">Cargando interfaz del dispositivo...</span>
+        </div>
+        <style>@keyframes spin{to{transform:rotate(360deg)}}</style>
+
         <!-- iFrame apunta DIRECTAMENTE a la IP del ESP32, sin pasar por el proxy -->
         <iframe id="espFrame" class="esp-frame" src="" frameborder="0"
-                allow="same-origin" style="height:calc(100vh - 160px)"></iframe>
+                style="height:calc(100vh - 160px);opacity:0;transition:opacity .4s"
+                onload="frameLoaded()"></iframe>
     </div>
 </div>
 
@@ -70,12 +86,6 @@
                 return;
             }
 
-            const ping = await API.dispositivos.ping(p.dispositivo_id);
-            if (!ping.online) {
-                window.location.href = `error-dispositivo.html?id=${practicaId}&motivo=sin_conexion`;
-                return;
-            }
-
             _ip     = p.ip;
             _dispId = p.dispositivo_id;
 
@@ -83,6 +93,15 @@
             document.getElementById('espTitle').textContent = p.titulo || '';
             document.getElementById('espSub').textContent   = p.descripcion || '';
             document.getElementById('espIP').textContent    = 'IP: ' + p.ip;
+
+            // Si la BD dice offline mostramos badge de advertencia pero cargamos
+            // el iframe igual — el ping puede fallar por lentitud del dispositivo
+            // aunque la página cargue bien. El monitoreo actualiza el badge.
+            if (!p.online) {
+                const badge = document.getElementById('espBadge');
+                badge.className   = 'badge badge-offline';
+                badge.textContent = '● Reconectando...';
+            }
 
             // Conectar DIRECTO a la IP del ESP32
             document.getElementById('espFrame').src = `http://${p.ip}/`;
@@ -92,24 +111,45 @@
 
             iniciarMonitoreo();
         } catch(e) {
-            window.location.href = `error-dispositivo.html?id=${practicaId}&motivo=proxy_error`;
+            console.error('[practica.html] Error en cargarPractica:', e);
+            // Mostrar error en pantalla en lugar de redirigir para poder verlo
+            document.getElementById('estadoCarga').innerHTML = `
+                <div style="max-width:520px;text-align:left;padding:24px;background:#fff1f2;border:1.5px solid #fca5a5;border-radius:10px">
+                    <strong style="color:#b91c1c;font-size:1rem">⚠ Error al cargar la práctica</strong>
+                    <p style="margin:10px 0 6px;color:#374151;font-size:.9rem"><b>Mensaje:</b> ${e.message || '(sin mensaje)'}</p>
+                    <pre style="font-size:.75rem;background:#fee2e2;padding:10px;border-radius:6px;overflow:auto;color:#7f1d1d">${e.stack || '(sin stack)'}</pre>
+                    <a href="panel-profesor.html" style="display:inline-block;margin-top:12px;font-size:.85rem;color:#2563eb">← Volver a mis prácticas</a>
+                </div>`;
         }
     }
 
+    function frameLoaded() {
+        document.getElementById('iframeLoader').style.display = 'none';
+        document.getElementById('espFrame').style.opacity = '1';
+    }
+
     function recargar() {
-        if (_ip) document.getElementById('espFrame').src = `http://${_ip}/`;
+        if (_ip) {
+            document.getElementById('iframeLoader').style.display = 'flex';
+            document.getElementById('espFrame').style.opacity = '0';
+            document.getElementById('loaderMsg').textContent = 'Recargando interfaz del dispositivo...';
+            document.getElementById('espFrame').src = `http://${_ip}/`;
+        }
     }
 
     let monitorInterval;
     function iniciarMonitoreo() {
-        monitorInterval = setInterval(async () => {
-            try {
-                const ping  = await API.dispositivos.ping(_dispId);
-                const badge = document.getElementById('espBadge');
-                badge.className   = `badge ${ping.online ? 'badge-online' : 'badge-offline'}`;
-                badge.textContent = ping.online ? '● Conectado' : '● Sin conexión';
-            } catch {}
-        }, 20000);
+        // Esperar 15s antes del primer ping para no solapar con el ping reciente del panel.
+        setTimeout(() => {
+            monitorInterval = setInterval(async () => {
+                try {
+                    const ping  = await API.dispositivos.ping(_dispId);
+                    const badge = document.getElementById('espBadge');
+                    badge.className   = `badge ${ping.online ? 'badge-online' : 'badge-offline'}`;
+                    badge.textContent = ping.online ? '● Conectado' : '● Sin conexión';
+                } catch {}
+            }, 20000);
+        }, 15000);
     }
 
     window.addEventListener('beforeunload', () => clearInterval(monitorInterval));

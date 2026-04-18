@@ -24,10 +24,22 @@
         .prac-card.offline {
             border-left-color: #f59e0b;
             background: #fffbeb;
-            cursor: default;
+            cursor: pointer;
+        }
+        .prac-card.offline:hover {
+            background: #fef3c7;
+            border-left-color: #d97706;
         }
         .prac-card.offline .prac-title { color: #92400e; }
         .prac-card.offline .prac-sub   { color: #b45309; }
+
+        /* Card verificando */
+        .prac-card.verificando {
+            border-left-color: #3b82f6;
+            background: #eff6ff;
+            cursor: wait;
+            pointer-events: none;
+        }
 
         /* Mensaje de aviso al técnico */
         .offline-msg {
@@ -47,15 +59,22 @@
         }
         .banner-offline svg { flex-shrink: 0; color: #d97706; }
         .banner-offline strong { font-weight: 700; }
+
+        /* Spinner inline */
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .spinner {
+            width: 14px; height: 14px; border: 2px solid #93c5fd;
+            border-top-color: #2563eb; border-radius: 50%;
+            animation: spin .7s linear infinite; flex-shrink: 0;
+        }
     </style>
 </head>
 <body style="display:flex;flex-direction:column;height:100vh;overflow:hidden">
 
-<nav class="navbar">
+<nav class="navbar" style="height:42px">
     <div class="navbar-brand">
-        <img src="https://udemm.edu.ar/wp-content/uploads/2024/01/Udemm-Logo.webp"
-             alt="UdeMM" style="height:26px;filter:brightness(0) invert(1);opacity:.9;flex-shrink:0"
-             onerror="this.style.display='none'">
+        <img src="assets/img/udemm_logo.png"
+             alt="UdeMM" style="height:30px;filter:brightness(0) invert(1);mix-blend-mode:screen;opacity:.9;flex-shrink:0">
         <div>
             <div class="navbar-brand-text">Laboratorio de Ingeniería</div>
             <div class="navbar-brand-sub">Universidad de la Marina Mercante</div>
@@ -116,6 +135,11 @@
         _toastTimer = setTimeout(() => el.classList.remove('visible'), duracion);
     }
 
+    function ocultarToast() {
+        clearTimeout(_toastTimer);
+        document.getElementById('toast').classList.remove('visible');
+    }
+
     // ── Cargar prácticas ──────────────────────────────────────
     async function cargarPracticas() {
         try {
@@ -146,14 +170,14 @@
                         <div>
                             <strong>${offline.length} ${offline.length === 1 ? 'práctica no disponible' : 'prácticas no disponibles'}</strong>
                             — ${offline.map(p => p.titulo).join(', ')}.
-                            Si necesitás acceder, avisá al técnico de laboratorio para que verifique los dispositivos.
+                            Podés hacer clic en la práctica para verificar si el dispositivo está disponible.
                         </div>
                     </div>`;
 
                 // Toast solo en la primera carga
                 if (_primeraVez) {
                     mostrarToast(
-                        `${offline.length} ${offline.length === 1 ? 'dispositivo sin conexión' : 'dispositivos sin conexión'}. Consultá al técnico si lo necesitás.`,
+                        `${offline.length} ${offline.length === 1 ? 'dispositivo sin conexión' : 'dispositivos sin conexión'}. Hacé clic en la práctica para verificar.`,
                         7000
                     );
                 }
@@ -223,22 +247,22 @@
                         </div>
                     </div>`;
                 } else {
-                    // ── OFFLINE ─────────────────────────────
+                    // ── OFFLINE — clickeable para verificar en vivo ──
                     html += `
-                    <div class="prac-card offline">
+                    <div class="prac-card offline" id="card-${p.id}" onclick="verificarYAcceder(${p.id})">
                         <div style="flex:1">
                             <div class="prac-title">${p.titulo}</div>
                             <div class="prac-sub">
                                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
                                 ${p.dispositivo_nombre || 'Sin dispositivo'}${p.descripcion ? ' · ' + p.descripcion : ''}
                             </div>
-                            <div class="offline-msg">
+                            <div class="offline-msg" id="msg-${p.id}">
                                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
-                                El dispositivo no está encendido o no tiene conexión. Avisá al técnico de laboratorio.
+                                Sin conexión registrada — hacé clic para verificar si está disponible.
                             </div>
                         </div>
                         <div style="flex-shrink:0;margin-left:12px">
-                            <span class="badge badge-offline">
+                            <span class="badge badge-offline" id="badge-${p.id}">
                                 <svg viewBox="0 0 24 24" width="7" height="7" fill="#94a3b8"><circle cx="12" cy="12" r="12"/></svg>
                                 Sin conexión
                             </span>
@@ -252,7 +276,7 @@
         cont.innerHTML = html;
     }
 
-    // ── Acceder a práctica ────────────────────────────────────
+    // ── Acceder a práctica ONLINE ─────────────────────────────
     async function acceder(id) {
         try {
             const p    = await API.practicas.obtener(id);
@@ -265,6 +289,49 @@
             }
             window.location.href = `practica.html?id=${id}`;
         } catch(e) { API.mostrarAlerta('alerta', 'error', e.message); }
+    }
+
+    // ── Verificar y acceder a práctica OFFLINE ────────────────
+    // Hace un ping en vivo al dispositivo. Si responde, navega a la práctica.
+    async function verificarYAcceder(id) {
+        const card  = document.getElementById(`card-${id}`);
+        const badge = document.getElementById(`badge-${id}`);
+        const msg   = document.getElementById(`msg-${id}`);
+
+        // Estado: verificando
+        card.classList.add('verificando');
+        badge.innerHTML = `<div class="spinner"></div> Verificando...`;
+        msg.innerHTML   = `<div class="spinner"></div> Consultando el dispositivo, aguardá un momento...`;
+        mostrarToast('Verificando conexión con el dispositivo...', 10000);
+
+        try {
+            const p    = await API.practicas.obtener(id);
+            const ping = await API.dispositivos.ping(p.dispositivo_id);
+
+            ocultarToast();
+
+            if (ping.online) {
+                // ¡Está online! Navegar directamente
+                window.location.href = `practica.html?id=${id}`;
+            } else {
+                // Sigue offline — restaurar card y mostrar mensaje
+                card.classList.remove('verificando');
+                badge.innerHTML = `<svg viewBox="0 0 24 24" width="7" height="7" fill="#94a3b8"><circle cx="12" cy="12" r="12"/></svg> Sin conexión`;
+                msg.innerHTML   = `
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                    El dispositivo no responde. Verificá que esté encendido y avisá al técnico si el problema persiste.`;
+                API.mostrarAlerta('alerta', 'error',
+                    'El dispositivo no responde. Verificá que esté encendido o avisá al técnico de laboratorio.');
+            }
+        } catch(e) {
+            ocultarToast();
+            card.classList.remove('verificando');
+            badge.innerHTML = `<svg viewBox="0 0 24 24" width="7" height="7" fill="#94a3b8"><circle cx="12" cy="12" r="12"/></svg> Sin conexión`;
+            msg.innerHTML   = `
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                Sin conexión registrada — hacé clic para verificar si está disponible.`;
+            API.mostrarAlerta('alerta', 'error', e.message);
+        }
     }
 
     // ── Iniciar ───────────────────────────────────────────────

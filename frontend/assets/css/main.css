@@ -224,11 +224,11 @@ code {
 }
 .sb-logo-img {
     width: 100%;
-    max-width: 140px;
+    max-width: 170px;
     height: auto;
     display: block;
     filter: brightness(0) invert(1);
-    opacity: .92;
+    opacity: .9;
     margin-bottom: 8px;
 }
 .sb-logo-label {
@@ -420,7 +420,7 @@ code {
 /* Tablet (≤900px) */
 @media (max-width: 900px) {
     .sidebar        { width: 180px; }
-    .sb-logo-img    { max-width: 120px; }
+    .sb-logo-img    { max-width: 145px; }
     .stats-grid     { grid-template-columns: repeat(3, 1fr); }
     .dash-grid      { grid-template-columns: 1fr; }
     .sec-body       { padding: 16px 18px; }
@@ -451,7 +451,7 @@ code {
         gap: 8px;
         flex-shrink: 0;
     }
-    .sb-logo-img    { max-width: 80px; margin-bottom: 0; }
+    .sb-logo-img    { max-width: 95px; margin-bottom: 0; }
     .sb-logo-label  { display: none; }
 
     .sb-user {

@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(ssh-keygen -R 192.168.1.12)",
+      "Bash(ssh -o StrictHostKeyChecking=accept-new udemm@192.168.1.12 \"echo ok\")",
+      "Bash(python3 -c ' *)",
+      "Bash(python -c ' *)",
+      "Bash(ssh *)"
+    ]
+  }
+}

@@ -133,6 +133,30 @@ router.delete('/vaciar/:tabla', verificarToken, soloSuperAdmin, (req, res) => {
     res.json({ mensaje: `${n} registros desactivados en ${tabla}` });
 });
 
+// ── DELETE /api/sa/purgar/dispositivos — eliminar registros inactivos ─
+router.delete('/purgar/dispositivos', verificarToken, soloSuperAdmin, (req, res) => {
+    const purgar = db.transaction(() => {
+        const inactivos = db.prepare('SELECT id FROM dispositivos WHERE activo = 0').all();
+        if (!inactivos.length) return 0;
+        for (const d of inactivos) {
+            db.prepare('UPDATE logs SET dispositivo_id = NULL WHERE dispositivo_id = ?').run(d.id);
+            db.prepare('DELETE FROM practicas WHERE dispositivo_id = ? AND activo = 0').run(d.id);
+        }
+        return db.prepare('DELETE FROM dispositivos WHERE activo = 0').run().changes;
+    });
+    const n = purgar();
+    if (n > 0) {
+        db.prepare("INSERT INTO logs (usuario_id, accion, detalle) VALUES (?, 'purgar_dispositivos', ?)")
+          .run(req.usuario.id, `Purgó ${n} dispositivo${n>1?'s':''} dados de baja`);
+    }
+    res.json({
+        mensaje: n > 0
+            ? `${n} dispositivo${n>1?'s':''} eliminado${n>1?'s':''} definitivamente`
+            : 'No había dispositivos dados de baja para purgar.',
+        n
+    });
+});
+
 // ── GET /api/sa/backup — descargar backup de la BD ───────────────
 router.get('/backup', verificarToken, soloSuperAdmin, (req, res) => {
     const src = '/app/data/laboratorio.db';

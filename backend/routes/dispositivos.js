@@ -161,10 +161,13 @@ router.delete('/:id', verificarToken, soloTecnico, (req, res) => {
     const ipLib    = disp.ip  ? `_eliminado_${ts}_${disp.ip}`  : null;
     const macLib   = disp.mac ? `_eliminado_${ts}_${disp.mac}` : null;
 
-    db.prepare('UPDATE dispositivos SET activo = 0, online = 0, ip = ?, mac = ? WHERE id = ?')
-      .run(ipLib, macLib, req.params.id);
-
-    res.json({ mensaje: 'Dispositivo desactivado' });
+    try {
+        db.prepare('UPDATE dispositivos SET activo = 0, online = 0, ip = ?, mac = ? WHERE id = ?')
+          .run(ipLib, macLib, req.params.id);
+        res.json({ mensaje: 'Dispositivo desactivado' });
+    } catch(e) {
+        res.status(500).json({ error: 'Error al desactivar dispositivo: ' + e.message });
+    }
 });
 
 // ── GET /api/dispositivos/materias/lista — para dropdowns ────────

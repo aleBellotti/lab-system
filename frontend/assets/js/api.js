@@ -28,6 +28,11 @@ const API = (() => {
             return;
         }
 
+        const ct = res.headers.get('content-type') || '';
+        if (!ct.includes('application/json')) {
+            throw new Error(`Error ${res.status}: respuesta inesperada del servidor`);
+        }
+
         const data = await res.json();
 
         if (!res.ok) {
@@ -106,6 +111,7 @@ const API = (() => {
         listar:          ()         => request('GET',    '/usuarios'),
         crear:           (data)     => request('POST',   '/usuarios', data),
         actualizar:      (id, data) => request('PUT',    `/usuarios/${id}`, data),
+        eliminar:        (id)       => request('DELETE', `/usuarios/${id}`),
         materias:        (id)       => request('GET',    `/usuarios/${id}/materias`),
         asignarMateria:  (id, mid)  => request('POST',   `/usuarios/${id}/materias`, { materia_id: mid }),
         quitarMateria:   (id, mid)  => request('DELETE', `/usuarios/${id}/materias/${mid}`),
@@ -137,6 +143,7 @@ const API = (() => {
         tecnicos:       ()         => request('GET',    '/sa/tecnicos'),
         crearTecnico:   (data)     => request('POST',   '/sa/tecnicos', data),
         actualizarTecnico:(id,d)   => request('PUT',    `/sa/tecnicos/${id}`, d),
+        purgarDispositivos: () => request('DELETE', '/sa/purgar/dispositivos'),
         // Diagnóstico
         diag: {
             estado:       ()       => request('GET',  '/sa/diagnostico/estado'),

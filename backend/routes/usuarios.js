@@ -63,6 +63,27 @@ router.delete('/:id/materias/:materia_id', verificarToken, soloTecnico, (req, re
     res.json({ mensaje: 'Materia removida' });
 });
 
+// DELETE /api/usuarios/:id — eliminar usuario (borrado lógico, solo técnico)
+router.delete('/:id', verificarToken, soloTecnico, (req, res) => {
+    const id = req.params.id;
+
+    // No permitir que un técnico se elimine a sí mismo
+    if (parseInt(id) === req.usuario.id)
+        return res.status(400).json({ error: 'No podés eliminar tu propia cuenta' });
+
+    const usuario = db.prepare('SELECT * FROM usuarios WHERE id = ?').get(id);
+    if (!usuario)
+        return res.status(404).json({ error: 'Usuario no encontrado' });
+
+    // Borrado lógico: activo = 0 (preserva logs e historial)
+    db.prepare('UPDATE usuarios SET activo = 0 WHERE id = ?').run(id);
+
+    db.prepare("INSERT INTO logs (usuario_id, accion, detalle) VALUES (?, 'eliminar_usuario', ?)")
+        .run(req.usuario.id, `Usuario eliminado: ${usuario.nombre} (${usuario.email})`);
+
+    res.json({ mensaje: 'Usuario eliminado' });
+});
+
 // PUT /api/usuarios/:id — actualizar usuario (solo técnico)
 router.put('/:id', verificarToken, soloTecnico, (req, res) => {
     const { nombre, email, password, activo } = req.body;

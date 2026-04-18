@@ -93,8 +93,8 @@
 <!-- SIDEBAR -->
 <aside class="sidebar" style="background:linear-gradient(180deg,#1e0a3c 0%,#0a1e3d 100%)">
     <div class="sb-logo">
-        <img src="https://udemm.edu.ar/wp-content/uploads/2024/01/Udemm-Logo.webp"
-             alt="UdeMM" class="sb-logo-img" onerror="this.style.display='none'">
+        <img src="assets/img/udemm_logo.png"
+             alt="UdeMM" class="sb-logo-img">
         <div class="sb-logo-label">Super Administrador</div>
     </div>
     <div class="sb-user">
@@ -243,6 +243,11 @@
                     <div style="font-size:.82rem;font-weight:600;margin-bottom:6px">Vaciar logs</div>
                     <div style="font-size:.76rem;color:var(--gris-t);margin-bottom:10px">Borra todo el historial de actividad</div>
                     <button class="btn btn-danger btn-sm" onclick="vaciarTabla('logs')">Vaciar</button>
+                </div>
+                <div style="background:white;border-radius:var(--radio);padding:14px;border:1px solid #fca5a5">
+                    <div style="font-size:.82rem;font-weight:600;margin-bottom:6px">Purgar dispositivos dados de baja</div>
+                    <div style="font-size:.76rem;color:var(--gris-t);margin-bottom:10px">Elimina definitivamente de la BD los registros desactivados</div>
+                    <button class="btn btn-danger btn-sm" onclick="purgarDispositivos()">Purgar bajas</button>
                 </div>
             </div>
         </div>
@@ -690,6 +695,14 @@ async function cargarBD(){
         };
     }catch(e){ alerta('error',e.message); }
 }
+async function purgarDispositivos(){
+    if(!confirm('¿Eliminar definitivamente todos los dispositivos dados de baja?\nEsta acción no se puede deshacer.')) return;
+    try{
+        const r=await API.sa.purgarDispositivos();
+        alerta('ok', r.mensaje);
+        cargarBD();
+    }catch(e){ alerta('error',e.message); }
+}
 async function vaciarTabla(tabla){
     const nombres={logs:'los logs',dispositivos:'todos los dispositivos',practicas:'todas las prácticas'};
     if(!confirm(`¿Estás seguro de que querés vaciar ${nombres[tabla]}? Esta acción no se puede deshacer.`)) return;
@@ -730,7 +743,8 @@ async function limpiarLogs(dias){
 }
 
 // ── Cerrar modales ────────────────────────────────────────────
-document.querySelectorAll('.modal-overlay').forEach(m=>m.addEventListener('click',e=>{if(e.target===m)m.classList.remove('active');}));
+const _modalesProtegidosSA = new Set(['modalTec']);
+document.querySelectorAll('.modal-overlay').forEach(m=>m.addEventListener('click',e=>{if(e.target===m&&!_modalesProtegidosSA.has(m.id))m.classList.remove('active');}));
 
 // ── Iniciar ───────────────────────────────────────────────────
 cargarStats();
@@ -933,121 +947,6 @@ function limpiarConsola() {
 function escHTML(str) {
     if (!str) return '';
     return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-}
-
-iniciarConsola();
-</script>
-</body>
-    <div class="consola-header" onclick="toggleConsola()">
-        <div class="consola-header-left">
-            <svg viewBox="0 0 24 24" fill="none" stroke="#a78bfa" stroke-width="2" width="15" height="15"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
-            <span class="consola-titulo">Consola del sistema</span>
-            <span class="consola-badge">Solo superadmin</span>
-        </div>
-        <div style="display:flex;align-items:center;gap:12px">
-            <button onclick="event.stopPropagation();limpiarConsola()" style="background:none;border:none;color:#64748b;cursor:pointer;font-size:.75rem;font-family:inherit">✕ Limpiar</button>
-            <svg id="consolaChevron" viewBox="0 0 24 24" fill="none" stroke="#64748b" stroke-width="2" width="16" height="16" style="transition:transform .3s"><polyline points="18 15 12 9 6 15"/></svg>
-        </div>
-    </div>
-    <div class="consola-cmds" id="consolaCmds">
-        <span style="font-size:.78rem;color:#475569">Cargando comandos...</span>
-    </div>
-    <div class="consola-output" id="consolaOutput">
-        <span class="out-info">▸ Panel de consola listo. Seleccioná un comando para ejecutarlo.</span>
-    </div>
-</div>
-
-<script>
-// ══ CONSOLA ════════════════════════════════════════════════════
-let _consolaAbierta = false;
-let _consolaCmds    = [];
-
-async function iniciarConsola() {
-    try {
-        const token = localStorage.getItem('token');
-        const r = await fetch('/api/sa/consola/comandos', {
-            headers: { Authorization: 'Bearer ' + token }
-        });
-        _consolaCmds = await r.json();
-        renderCmdBtns();
-    } catch(e) {
-        document.getElementById('consolaCmds').innerHTML =
-            `<span style="color:#f87171;font-size:.75rem">Error cargando comandos: ${e.message}</span>`;
-    }
-}
-
-function renderCmdBtns() {
-    const grupos = {};
-    _consolaCmds.forEach(c => {
-        if (!grupos[c.grupo]) grupos[c.grupo] = [];
-        grupos[c.grupo].push(c);
-    });
-    document.getElementById('consolaCmds').innerHTML = Object.entries(grupos).map(([grupo, cmds]) => `
-        <div class="consola-grupo">
-            <span class="consola-grupo-label">${grupo}</span>
-            ${cmds.map(c => `
-                <button class="cmd-btn" id="cbtn_${c.id}" onclick="ejecutarCmd('${c.id}','${c.label}')">
-                    ${c.label}
-                </button>`).join('')}
-        </div>`).join('<div style="width:1px;background:#334155;margin:0 4px;align-self:stretch"></div>');
-}
-
-async function ejecutarCmd(id, label) {
-    const output = document.getElementById('consolaOutput');
-    const btn    = document.getElementById('cbtn_' + id);
-
-    // Deshabilitar todos los botones mientras ejecuta
-    document.querySelectorAll('.cmd-btn').forEach(b => b.disabled = true);
-    if (btn) btn.textContent = '⏳ ' + label;
-
-    // Mostrar prompt
-    const ts = new Date().toLocaleTimeString('es-AR');
-    output.innerHTML += `\n<span class="out-prompt">▸ [${ts}] ${label}</span>\n`;
-    output.scrollTop = output.scrollHeight;
-
-    try {
-        const token = localStorage.getItem('token');
-        const r = await fetch('/api/sa/consola', {
-            method:  'POST',
-            headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
-            body:    JSON.stringify({ comando_id: id })
-        });
-        const data = await r.json();
-
-        if (data.ok) {
-            output.innerHTML += `<span class="out-ok">${escHTML(data.output || '(sin output)')}</span>`;
-        } else {
-            output.innerHTML += `<span class="out-error">${escHTML(data.output || data.error || 'Error desconocido')}</span>`;
-        }
-    } catch(e) {
-        output.innerHTML += `<span class="out-error">Error de red: ${e.message}</span>`;
-    }
-
-    output.innerHTML += `\n<div class="consola-separator"></div>`;
-    output.scrollTop  = output.scrollHeight;
-
-    // Rehabilitar botones
-    document.querySelectorAll('.cmd-btn').forEach(b => b.disabled = false);
-    renderCmdBtns(); // restaurar labels originales
-}
-
-function toggleConsola() {
-    _consolaAbierta = !_consolaAbierta;
-    document.getElementById('consolaPanel').classList.toggle('abierto', _consolaAbierta);
-    document.getElementById('consolaBtnFlotante').classList.toggle('consola-abierta', _consolaAbierta);
-    document.getElementById('consolaChevron').style.transform = _consolaAbierta ? 'rotate(180deg)' : '';
-    document.getElementById('consolaBtnFlotante').innerHTML = _consolaAbierta
-        ? `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15"><polyline points="18 15 12 9 6 15"/></svg> Cerrar`
-        : `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg> Consola`;
-}
-
-function limpiarConsola() {
-    document.getElementById('consolaOutput').innerHTML =
-        '<span class="out-info">▸ Consola limpiada.</span>';
-}
-
-function escHTML(str) {
-    return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 }
 
 iniciarConsola();

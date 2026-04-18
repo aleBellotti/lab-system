@@ -12,9 +12,8 @@
 <!-- SIDEBAR -->
 <aside class="sidebar">
     <div class="sb-logo">
-        <img src="https://udemm.edu.ar/wp-content/uploads/2024/01/Udemm-Logo.webp"
-             alt="UdeMM" class="sb-logo-img"
-             onerror="this.style.display='none'">
+        <img src="assets/img/udemm_logo.png"
+             alt="UdeMM" class="sb-logo-img">
         <div class="sb-logo-label">Laboratorio de Ingeniería</div>
     </div>
     <div class="sb-user">
@@ -307,7 +306,7 @@ function abrirModal(id) { document.getElementById(id).classList.add('active'); }
 function cerrarModal(id){ document.getElementById(id).classList.remove('active'); }
 // Cierre al hacer click fuera — bloqueado en modales con formulario
 // para no perder datos ingresados accidentalmente
-const MODALES_SIN_CIERRE_EXTERNO = new Set(['modalDisp', 'modalUsr', 'modalPrac', 'modalMat']);
+const MODALES_SIN_CIERRE_EXTERNO = new Set(['modalDisp', 'modalUsr', 'modalPrac', 'modalMat', 'modalPreview', 'modalEscaneo']);
 document.querySelectorAll('.modal-overlay').forEach(m => {
     m.addEventListener('click', e => {
         if (e.target === m && !MODALES_SIN_CIERRE_EXTERNO.has(m.id))
@@ -697,6 +696,7 @@ async function cargarUsrs() {
                 <button class="btn btn-danger btn-sm" onclick="toggleUsr(${u.id},${u.activo},'${u.nombre.replace(/'/g,"\\'")}')">
                     ${u.activo?'Desactivar':'Activar'}
                 </button>
+                <button class="btn btn-danger btn-sm" onclick="eliminarUsr(${u.id},'${u.nombre.replace(/'/g,"\\'")}')">🗑</button>
             </td></tr>`).join('')}
         </tbody></table>`;
     } catch(e){ alerta('error',e.message); }
@@ -769,6 +769,15 @@ async function toggleUsr(id,activo,nombre) {
     if(!confirm(`¿${activo?'Desactivar':'Activar'} a "${nombre}"?`)) return;
     try { await API.usuarios.actualizar(id,{activo:activo?0:1}); alerta('success','Usuario actualizado.'); cargarUsrs(); }
     catch(e){ alerta('error',e.message); }
+}
+
+async function eliminarUsr(id, nombre) {
+    if(!confirm(`¿Eliminar a "${nombre}"? Esta acción no se puede deshacer.`)) return;
+    try {
+        await API.usuarios.eliminar(id);
+        alerta('success', `Usuario "${nombre}" eliminado.`);
+        cargarUsrs();
+    } catch(e) { alerta('error', e.message); }
 }
 
 // ══════════════════════════════════════════════════════════════
