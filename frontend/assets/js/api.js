@@ -143,6 +143,7 @@ const API = (() => {
         tecnicos:       ()         => request('GET',    '/sa/tecnicos'),
         crearTecnico:   (data)     => request('POST',   '/sa/tecnicos', data),
         actualizarTecnico:(id,d)   => request('PUT',    `/sa/tecnicos/${id}`, d),
+        eliminarTecnico:  (id)     => request('DELETE', `/sa/tecnicos/${id}`),
         purgarDispositivos: () => request('DELETE', '/sa/purgar/dispositivos'),
         // Diagnóstico
         diag: {

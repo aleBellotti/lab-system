@@ -216,7 +216,6 @@ code {
     width: 220px; flex-shrink: 0;
     background: var(--azul);
     display: flex; flex-direction: column;
-    overflow-y: auto;
 }
 .sb-logo {
     padding: 16px 16px 14px;
@@ -227,7 +226,8 @@ code {
     max-width: 170px;
     height: auto;
     display: block;
-    filter: brightness(0) invert(1);
+    filter: grayscale(1) invert(1);
+    mix-blend-mode: screen;
     opacity: .9;
     margin-bottom: 8px;
 }
@@ -262,7 +262,7 @@ code {
 .sb-uname { font-size: .82rem; font-weight: 600; color: white; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .sb-urol  { font-size: .65rem; color: rgba(255,255,255,.4); text-transform: uppercase; letter-spacing: .04em; }
 
-.sb-nav { flex: 1; padding: 8px; display: flex; flex-direction: column; gap: 1px; }
+.sb-nav { flex: 1; padding: 8px; display: flex; flex-direction: column; gap: 1px; overflow-y: auto; }
 
 .sb-section {
     font-size: .62rem; text-transform: uppercase; letter-spacing: .09em;

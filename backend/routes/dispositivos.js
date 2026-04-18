@@ -153,15 +153,14 @@ router.put('/:id', verificarToken, soloTecnico, (req, res) => {
 
 // ── DELETE /api/dispositivos/:id — desactivar y liberar IP + MAC ─
 router.delete('/:id', verificarToken, soloTecnico, (req, res) => {
-    const disp = db.prepare('SELECT ip, mac FROM dispositivos WHERE id = ?').get(req.params.id);
-    if (!disp) return res.status(404).json({ error: 'No encontrado' });
-
-    // Liberar IP y MAC con sufijo timestamp para que UNIQUE no bloquee reusos
-    const ts       = Date.now();
-    const ipLib    = disp.ip  ? `_eliminado_${ts}_${disp.ip}`  : null;
-    const macLib   = disp.mac ? `_eliminado_${ts}_${disp.mac}` : null;
-
     try {
+        const disp = db.prepare('SELECT ip, mac FROM dispositivos WHERE id = ?').get(req.params.id);
+        if (!disp) return res.status(404).json({ error: 'No encontrado' });
+
+        const ts     = Date.now();
+        const ipLib  = disp.ip  ? `_eliminado_${ts}_${disp.ip}`  : null;
+        const macLib = disp.mac ? `_eliminado_${ts}_${disp.mac}` : null;
+
         db.prepare('UPDATE dispositivos SET activo = 0, online = 0, ip = ?, mac = ? WHERE id = ?')
           .run(ipLib, macLib, req.params.id);
         res.json({ mensaje: 'Dispositivo desactivado' });

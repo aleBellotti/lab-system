@@ -80,13 +80,13 @@ try {
     db.exec(`ALTER TABLE usuarios ADD COLUMN ultimo_acceso TEXT`);
 } catch {}
 
+// SQLite < 3.37 no acepta ADD COLUMN ... UNIQUE: hay que hacerlo en dos pasos.
 try {
-    // ip pasa de NOT NULL a nullable para permitir dispositivos
-    // dados de alta antes de que el ESP32 se registre por primera vez.
-    // SQLite no soporta ALTER COLUMN, pero los dispositivos existentes
-    // ya tienen ip, así que solo necesitamos agregar mac.
-    db.exec(`ALTER TABLE dispositivos ADD COLUMN mac TEXT UNIQUE`);
+    db.exec(`ALTER TABLE dispositivos ADD COLUMN mac TEXT`);
     console.log('✅ Migración: columna mac agregada a dispositivos');
+} catch {}
+try {
+    db.exec(`CREATE UNIQUE INDEX IF NOT EXISTS idx_dispositivos_mac ON dispositivos(mac) WHERE mac IS NOT NULL`);
 } catch {}
 
 // ─── Configuración por defecto ────────────────────────────────────

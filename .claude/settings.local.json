@@ -5,7 +5,8 @@
       "Bash(ssh -o StrictHostKeyChecking=accept-new udemm@192.168.1.12 \"echo ok\")",
       "Bash(python3 -c ' *)",
       "Bash(python -c ' *)",
-      "Bash(ssh *)"
+      "Bash(ssh *)",
+      "PowerShell(ssh udemm@192.168.1.12 \"cd /home/udemm/lab-system && docker compose restart backend 2>&1 | tail -5\")"
     ]
   }
 }

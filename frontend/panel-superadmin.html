@@ -593,6 +593,7 @@ async function cargarTecs() {
                 <button class="btn btn-danger btn-sm" onclick="toggleTec(${u.id},${u.activo},'${u.nombre.replace(/'/g,"\\'")}')">
                     ${u.activo?'Desactivar':'Activar'}
                 </button>
+                ${!u.activo?`<button class="btn btn-danger btn-sm" style="background:#7f1d1d" onclick="eliminarTec(${u.id},'${u.nombre.replace(/'/g,"\\'")}','${u.email}')">Eliminar</button>`:''}
             </td></tr>`).join('')}
         </tbody></table>`;
     } catch(e){ alerta('error',e.message); }
@@ -633,6 +634,11 @@ async function guardarTec(){
 async function toggleTec(id,activo,nombre){
     if(!confirm(`¿${activo?'Desactivar':'Activar'} a "${nombre}"?`)) return;
     try{ await API.sa.actualizarTecnico(id,{activo:activo?0:1}); alerta('ok','Usuario actualizado.'); cargarTecs(); }
+    catch(e){ alerta('error',e.message); }
+}
+async function eliminarTec(id,nombre,email){
+    if(!confirm(`¿Eliminar definitivamente a "${nombre}" (${email})?\n\nEsto libera el email para reusos futuros. La acción no se puede deshacer.`)) return;
+    try{ await API.sa.eliminarTecnico(id); alerta('ok','Usuario eliminado. Email liberado.'); cargarTecs(); }
     catch(e){ alerta('error',e.message); }
 }
 

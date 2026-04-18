@@ -197,20 +197,26 @@ app.get('/api/health', (req, res) => {
 });
 
 // ─── Ping automático en background ──────────────────────────────
+// Solo loguea cambios de estado (online→offline y offline→online)
+// para no llenar los logs con fallos repetidos de dispositivos apagados.
 async function pingTodosLosDispositivos() {
     const dispositivos = db.prepare(
-        'SELECT id, ip, nombre FROM dispositivos WHERE activo = 1'
+        'SELECT id, ip, nombre, online FROM dispositivos WHERE activo = 1'
     ).all();
 
     for (const disp of dispositivos) {
         try {
-            await httpGet(disp.ip, 12000); // 12s para páginas pesadas
+            await httpGet(disp.ip, 5000);
             db.prepare('UPDATE dispositivos SET online = 1, ultimo_ping = ? WHERE id = ?')
               .run(new Date().toISOString(), disp.id);
-            console.log(`✅ Ping OK: ${disp.nombre} (${disp.ip})`);
+            if (!disp.online) {
+                console.log(`✅ Ping OK: ${disp.nombre} (${disp.ip}) — volvió online`);
+            }
         } catch(e) {
-            console.log(`❌ Ping FAIL: ${disp.nombre} (${disp.ip}) — ${e.message}`);
             db.prepare('UPDATE dispositivos SET online = 0 WHERE id = ?').run(disp.id);
+            if (disp.online) {
+                console.log(`❌ Ping FAIL: ${disp.nombre} (${disp.ip}) — ${e.message} — marcado offline`);
+            }
         }
     }
 }

@@ -111,20 +111,22 @@ router.delete('/vaciar/:tabla', verificarToken, soloSuperAdmin, (req, res) => {
     }
     let n;
     if (tabla === 'dispositivos') {
-        // Renombrar IP y MAC con timestamp antes de desactivar
-        // para liberar los índices UNIQUE y permitir reusos futuros
-        const ts = Date.now();
-        const disps = db.prepare('SELECT id, ip, mac FROM dispositivos WHERE activo = 1').all();
-        const stmt = db.prepare('UPDATE dispositivos SET activo = 0, online = 0, ip = ?, mac = ? WHERE id = ?');
-        const vaciar = db.transaction(() => {
-            for (const d of disps) {
-                const ipLib  = d.ip  ? `_eliminado_${ts}_${d.ip}`  : null;
-                const macLib = d.mac ? `_eliminado_${ts}_${d.mac}` : null;
-                stmt.run(ipLib, macLib, d.id);
-            }
-        });
-        vaciar();
-        n = disps.length;
+        try {
+            const ts = Date.now();
+            const disps = db.prepare('SELECT id, ip, mac FROM dispositivos WHERE activo = 1').all();
+            const stmt  = db.prepare('UPDATE dispositivos SET activo = 0, online = 0, ip = ?, mac = ? WHERE id = ?');
+            const vaciar = db.transaction(() => {
+                for (const d of disps) {
+                    const ipLib  = d.ip  ? `_eliminado_${ts}_${d.ip}`  : null;
+                    const macLib = d.mac ? `_eliminado_${ts}_${d.mac}` : null;
+                    stmt.run(ipLib, macLib, d.id);
+                }
+            });
+            vaciar();
+            n = disps.length;
+        } catch(e) {
+            return res.status(500).json({ error: 'Error al vaciar dispositivos: ' + e.message });
+        }
     } else {
         n = db.prepare(`UPDATE ${tabla} SET activo = 0`).run().changes;
     }
@@ -135,26 +137,31 @@ router.delete('/vaciar/:tabla', verificarToken, soloSuperAdmin, (req, res) => {
 
 // ── DELETE /api/sa/purgar/dispositivos — eliminar registros inactivos ─
 router.delete('/purgar/dispositivos', verificarToken, soloSuperAdmin, (req, res) => {
-    const purgar = db.transaction(() => {
-        const inactivos = db.prepare('SELECT id FROM dispositivos WHERE activo = 0').all();
-        if (!inactivos.length) return 0;
-        for (const d of inactivos) {
-            db.prepare('UPDATE logs SET dispositivo_id = NULL WHERE dispositivo_id = ?').run(d.id);
-            db.prepare('DELETE FROM practicas WHERE dispositivo_id = ? AND activo = 0').run(d.id);
+    try {
+        const purgar = db.transaction(() => {
+            const inactivos = db.prepare('SELECT id FROM dispositivos WHERE activo = 0').all();
+            if (!inactivos.length) return 0;
+            for (const d of inactivos) {
+                // Anular TODAS las referencias (activas e inactivas) para evitar FK constraint
+                db.prepare('UPDATE logs      SET dispositivo_id = NULL WHERE dispositivo_id = ?').run(d.id);
+                db.prepare('UPDATE practicas SET dispositivo_id = NULL WHERE dispositivo_id = ?').run(d.id);
+            }
+            return db.prepare('DELETE FROM dispositivos WHERE activo = 0').run().changes;
+        });
+        const n = purgar();
+        if (n > 0) {
+            db.prepare("INSERT INTO logs (usuario_id, accion, detalle) VALUES (?, 'purgar_dispositivos', ?)")
+              .run(req.usuario.id, `Purgó ${n} dispositivo${n>1?'s':''} dados de baja`);
         }
-        return db.prepare('DELETE FROM dispositivos WHERE activo = 0').run().changes;
-    });
-    const n = purgar();
-    if (n > 0) {
-        db.prepare("INSERT INTO logs (usuario_id, accion, detalle) VALUES (?, 'purgar_dispositivos', ?)")
-          .run(req.usuario.id, `Purgó ${n} dispositivo${n>1?'s':''} dados de baja`);
+        res.json({
+            mensaje: n > 0
+                ? `${n} dispositivo${n>1?'s':''} eliminado${n>1?'s':''} definitivamente`
+                : 'No había dispositivos dados de baja para purgar.',
+            n
+        });
+    } catch(e) {
+        res.status(500).json({ error: 'Error al purgar dispositivos: ' + e.message });
     }
-    res.json({
-        mensaje: n > 0
-            ? `${n} dispositivo${n>1?'s':''} eliminado${n>1?'s':''} definitivamente`
-            : 'No había dispositivos dados de baja para purgar.',
-        n
-    });
 });
 
 // ── GET /api/sa/backup — descargar backup de la BD ───────────────
@@ -177,7 +184,9 @@ router.get('/backup', verificarToken, soloSuperAdmin, (req, res) => {
 router.get('/tecnicos', verificarToken, soloSuperAdmin, (req, res) => {
     const tecnicos = db.prepare(`
         SELECT id, nombre, email, rol, activo, creado_en, ultimo_acceso
-        FROM usuarios WHERE rol IN ('tecnico','superadmin') ORDER BY rol, nombre
+        FROM usuarios WHERE rol IN ('tecnico','superadmin')
+        AND email NOT LIKE '__DELETED__%'
+        ORDER BY rol, nombre
     `).all();
     res.json(tecnicos);
 });
@@ -200,6 +209,28 @@ router.post('/tecnicos', verificarToken, soloSuperAdmin, (req, res) => {
         if (e.message.includes('UNIQUE'))
             return res.status(409).json({ error: 'Email ya existe' });
         res.status(500).json({ error: 'Error al crear usuario' });
+    }
+});
+
+// ── DELETE /api/sa/tecnicos/:id — eliminar técnico definitivamente ─
+router.delete('/tecnicos/:id', verificarToken, soloSuperAdmin, (req, res) => {
+    const u = db.prepare("SELECT id, email, rol FROM usuarios WHERE id = ? AND rol IN ('tecnico','superadmin')").get(req.params.id);
+    if (!u) return res.status(404).json({ error: 'Usuario no encontrado' });
+
+    // Impedir auto-eliminación
+    if (u.id === req.usuario.id)
+        return res.status(400).json({ error: 'No podés eliminar tu propio usuario' });
+
+    const ts      = Date.now();
+    const emailLib = `__DELETED__${ts}__${u.email}`;
+
+    try {
+        db.prepare('UPDATE usuarios SET activo = 0, email = ? WHERE id = ?').run(emailLib, u.id);
+        db.prepare("INSERT INTO logs (usuario_id, accion, detalle) VALUES (?, 'eliminar_tecnico', ?)")
+          .run(req.usuario.id, `Eliminó usuario id=${u.id} email=${u.email}`);
+        res.json({ mensaje: 'Usuario eliminado. El email quedó liberado para reusos.' });
+    } catch(e) {
+        res.status(500).json({ error: 'Error al eliminar usuario: ' + e.message });
     }
 });
 
