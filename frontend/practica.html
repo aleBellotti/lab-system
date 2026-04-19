@@ -31,18 +31,13 @@
 
 <div id="vistaPractica" style="display:none;flex:1;flex-direction:column;overflow:hidden">
     <div class="esp-page">
-        <div class="esp-header-card" style="padding:8px 18px;margin-bottom:8px">
-            <div>
-                <div class="esp-mat"   id="espMat">—</div>
-                <div class="esp-title" id="espTitle" style="margin-bottom:0">—</div>
-                <div class="esp-sub"   id="espSub" style="font-size:.8rem;color:var(--gris-t);margin-top:2px"></div>
-            </div>
-            <div style="display:flex;align-items:center;gap:12px">
-                <div style="text-align:right">
-                    <span class="badge badge-online" id="espBadge">● Conectado</span>
-                    <div style="font-size:.72rem;color:var(--gris-t);margin-top:2px" id="espIP"></div>
-                </div>
-                <button class="btn btn-secondary btn-sm" onclick="recargar()">↻ Recargar</button>
+        <div class="esp-header-card" style="padding:8px 18px;margin-bottom:8px;display:flex;align-items:center;gap:12px">
+            <div class="esp-mat" id="espMat" style="flex-shrink:0;margin:0">—</div>
+            <div class="esp-title" id="espTitle" style="flex:1;text-align:center;margin:0;font-size:1.15rem">—</div>
+            <div style="display:flex;align-items:center;gap:8px;flex-shrink:0">
+                <span id="espBadge"><svg viewBox="0 0 24 24" width="9" height="9" fill="#16a34a"><circle cx="12" cy="12" r="12"/></svg></span>
+                <span style="font-size:.78rem;font-family:monospace;color:#16a34a" id="espIP"></span>
+                <button class="btn btn-secondary btn-sm" onclick="recargar()" title="Recargar">↻</button>
             </div>
         </div>
         <!-- Overlay de carga del iframe -->
@@ -91,16 +86,15 @@
 
             document.getElementById('espMat').textContent   = p.materia_nombre || '';
             document.getElementById('espTitle').textContent = p.titulo || '';
-            document.getElementById('espSub').textContent   = p.descripcion || '';
-            document.getElementById('espIP').textContent    = 'IP: ' + p.ip;
+            document.getElementById('espIP').textContent    = p.ip;
 
             // Si la BD dice offline mostramos badge de advertencia pero cargamos
             // el iframe igual — el ping puede fallar por lentitud del dispositivo
             // aunque la página cargue bien. El monitoreo actualiza el badge.
             if (!p.online) {
-                const badge = document.getElementById('espBadge');
-                badge.className   = 'badge badge-offline';
-                badge.textContent = '● Reconectando...';
+                document.getElementById('espBadge').innerHTML =
+                    '<svg viewBox="0 0 24 24" width="9" height="9" fill="#f59e0b"><circle cx="12" cy="12" r="12"/></svg>';
+                document.getElementById('espIP').style.color = '#f59e0b';
             }
 
             // Conectar DIRECTO a la IP del ESP32
@@ -145,8 +139,10 @@
                 try {
                     const ping  = await API.dispositivos.ping(_dispId);
                     const badge = document.getElementById('espBadge');
-                    badge.className   = `badge ${ping.online ? 'badge-online' : 'badge-offline'}`;
-                    badge.textContent = ping.online ? '● Conectado' : '● Sin conexión';
+                    badge.innerHTML = ping.online
+                        ? '<svg viewBox="0 0 24 24" width="9" height="9" fill="#16a34a"><circle cx="12" cy="12" r="12"/></svg>'
+                        : '<svg viewBox="0 0 24 24" width="9" height="9" fill="#f59e0b"><circle cx="12" cy="12" r="12"/></svg>';
+                    document.getElementById('espIP').style.color = ping.online ? '#16a34a' : '#f59e0b';
                 } catch {}
             }, 20000);
         }, 15000);

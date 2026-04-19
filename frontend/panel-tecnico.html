@@ -754,7 +754,7 @@ async function guardarUsr() {
     if(!_usrEditId&&!pass) return alerta('error','La contraseña es requerida.');
     try {
         let uid=_usrEditId;
-        if(_usrEditId) { await API.usuarios.actualizar(_usrEditId,{nombre,email,...(pass?{password:pass}:{})}); }
+        if(_usrEditId) { await API.usuarios.actualizar(_usrEditId,{nombre,email,rol,...(pass?{password:pass}:{})}); }
         else { const r=await API.usuarios.crear({nombre,email,password:pass,rol}); uid=r.id; }
         if(rol==='profesor'&&uid) {
             const act=_usrEditId?await API.usuarios.materias(uid):[];

@@ -230,20 +230,12 @@
                 if (p.online) {
                     // ── ONLINE ──────────────────────────────
                     html += `
-                    <div class="prac-card" onclick="acceder(${p.id})">
-                        <div>
-                            <div class="prac-title">${p.titulo}</div>
-                            <div class="prac-sub">
-                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
-                                ${p.dispositivo_nombre || 'Sin dispositivo'}${p.descripcion ? ' · ' + p.descripcion : ''}
-                            </div>
-                        </div>
-                        <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px">
-                            <span class="badge badge-online">
-                                <svg viewBox="0 0 24 24" width="7" height="7" fill="#16a34a"><circle cx="12" cy="12" r="12"/></svg>
-                                Disponible
-                            </span>
-                            <span class="prac-arrow">→</span>
+                    <div class="prac-card" style="padding:8px 14px;min-height:0;align-items:center" onclick="acceder(${p.id})">
+                        <div style="flex:1;text-align:left;font-weight:600;font-size:1.1rem;color:var(--texto-principal)">${p.titulo}</div>
+                        <div style="display:flex;align-items:center;gap:6px;flex-shrink:0">
+                            <svg viewBox="0 0 24 24" width="8" height="8" fill="#16a34a"><circle cx="12" cy="12" r="12"/></svg>
+                            <span style="font-size:.78rem;color:#16a34a;font-family:monospace">${p.ip || '—'}</span>
+                            <span class="prac-arrow" style="margin-left:4px">→</span>
                         </div>
                     </div>`;
                 } else {

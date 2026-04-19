@@ -33,13 +33,24 @@ router.post('/', verificarToken, soloTecnico, (req, res) => {
         return res.status(400).json({ error: 'Rol inválido' });
     try {
         const hash = bcrypt.hashSync(password, 10);
+
+        const existente = db.prepare('SELECT id, activo FROM usuarios WHERE email = ?').get(email);
+        if (existente) {
+            if (existente.activo === 1)
+                return res.status(409).json({ error: 'Ya existe un usuario activo con ese email' });
+            // El email pertenece a un usuario dado de baja: reactivarlo con los nuevos datos
+            db.prepare('UPDATE usuarios SET nombre = ?, password = ?, rol = ?, activo = 1 WHERE id = ?')
+              .run(nombre, hash, rol, existente.id);
+            return res.status(200).json({ id: existente.id, mensaje: 'Usuario reactivado' });
+        }
+
         const result = db.prepare(
             'INSERT INTO usuarios (nombre, email, password, rol) VALUES (?, ?, ?, ?)'
         ).run(nombre, email, hash, rol);
         res.status(201).json({ id: result.lastInsertRowid, mensaje: 'Usuario creado' });
     } catch (e) {
         if (e.message.includes('UNIQUE'))
-            return res.status(409).json({ error: 'Ya existe un usuario con ese email' });
+            return res.status(409).json({ error: 'Ya existe un usuario activo con ese email' });
         res.status(500).json({ error: 'Error al crear usuario' });
     }
 });
@@ -86,16 +97,19 @@ router.delete('/:id', verificarToken, soloTecnico, (req, res) => {
 
 // PUT /api/usuarios/:id — actualizar usuario (solo técnico)
 router.put('/:id', verificarToken, soloTecnico, (req, res) => {
-    const { nombre, email, password, activo } = req.body;
+    const { nombre, email, password, rol, activo } = req.body;
+    if (rol && !['tecnico', 'profesor'].includes(rol))
+        return res.status(400).json({ error: 'Rol inválido' });
     const hash = password ? bcrypt.hashSync(password, 10) : null;
     db.prepare(`
         UPDATE usuarios
         SET nombre   = COALESCE(?, nombre),
             email    = COALESCE(?, email),
             password = COALESCE(?, password),
+            rol      = COALESCE(?, rol),
             activo   = COALESCE(?, activo)
         WHERE id = ?
-    `).run(nombre, email, hash, activo, req.params.id);
+    `).run(nombre, email, hash, rol, activo, req.params.id);
     res.json({ mensaje: 'Usuario actualizado' });
 });
 
