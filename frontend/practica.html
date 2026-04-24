@@ -9,7 +9,7 @@
 <body style="display:flex;flex-direction:column;height:100vh;overflow:hidden">
 
 <nav class="navbar" style="height:42px">
-    <div class="navbar-brand" onclick="window.location.href='panel-profesor.html'" style="cursor:pointer">
+    <div class="navbar-brand" onclick="window.location.href='panel-profesor.html'" style="cursor:pointer;flex-shrink:0">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14" style="color:rgba(255,255,255,.7);flex-shrink:0"><polyline points="15 18 9 12 15 6"/></svg>
         <img src="assets/img/udemm_logo.png"
              alt="UdeMM" style="height:30px;filter:grayscale(1) invert(1);mix-blend-mode:screen;opacity:.9;flex-shrink:0">
@@ -18,7 +18,14 @@
             <div class="navbar-brand-sub">Laboratorio de Ingeniería</div>
         </div>
     </div>
+    <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;min-width:0;padding:0 16px;overflow:hidden">
+        <div id="espTitle" style="font-size:.88rem;font-weight:700;color:white;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;text-align:center">—</div>
+        <div id="espMat" style="font-size:.65rem;color:rgba(255,255,255,.55);text-transform:uppercase;letter-spacing:.06em">—</div>
+    </div>
     <div class="navbar-right">
+        <span id="espBadge"><svg viewBox="0 0 24 24" width="9" height="9" fill="#4ade80"><circle cx="12" cy="12" r="12"/></svg></span>
+        <span style="font-size:.75rem;font-family:monospace;color:#4ade80" id="espIP"></span>
+        <button class="navbar-btn" onclick="recargar()" title="Recargar" style="padding:3px 8px">↻</button>
         <span class="navbar-user" id="nombreUsuario">—</span>
         <button class="navbar-btn" onclick="API.logout()">Salir</button>
     </div>
@@ -30,22 +37,13 @@
 </div>
 
 <div id="vistaPractica" style="display:none;flex:1;flex-direction:column;overflow:hidden">
-    <div class="esp-page">
-        <div class="esp-header-card" style="padding:8px 18px;margin-bottom:8px;display:flex;align-items:center;gap:12px">
-            <div class="esp-mat" id="espMat" style="flex-shrink:0;margin:0">—</div>
-            <div class="esp-title" id="espTitle" style="flex:1;text-align:center;margin:0;font-size:1.15rem">—</div>
-            <div style="display:flex;align-items:center;gap:8px;flex-shrink:0">
-                <span id="espBadge"><svg viewBox="0 0 24 24" width="9" height="9" fill="#16a34a"><circle cx="12" cy="12" r="12"/></svg></span>
-                <span style="font-size:.78rem;font-family:monospace;color:#16a34a" id="espIP"></span>
-                <button class="btn btn-secondary btn-sm" onclick="recargar()" title="Recargar">↻</button>
-            </div>
-        </div>
+    <div class="esp-page" style="padding:0 6px 6px 6px">
         <!-- Overlay de carga del iframe -->
         <div id="iframeLoader" style="
             position:absolute; inset:0; display:flex; flex-direction:column;
             align-items:center; justify-content:center; gap:14px;
             background:var(--gris-bg,#f4f6f9); z-index:10;
-            height:calc(100vh - 160px); margin-top:0;">
+            height:calc(100vh - 50px); margin-top:0;">
             <svg viewBox="0 0 24 24" fill="none" stroke="#6366f1" stroke-width="1.5" width="40" height="40"
                  style="animation:spin .9s linear infinite">
                 <circle cx="12" cy="12" r="10" stroke-opacity=".25"/>
@@ -57,7 +55,7 @@
 
         <!-- iFrame apunta DIRECTAMENTE a la IP del ESP32, sin pasar por el proxy -->
         <iframe id="espFrame" class="esp-frame" src="" frameborder="0"
-                style="height:calc(100vh - 160px);opacity:0;transition:opacity .4s"
+                style="height:calc(100vh - 50px);opacity:0;transition:opacity .4s"
                 onload="frameLoaded()"></iframe>
     </div>
 </div>
@@ -93,8 +91,8 @@
             // aunque la página cargue bien. El monitoreo actualiza el badge.
             if (!p.online) {
                 document.getElementById('espBadge').innerHTML =
-                    '<svg viewBox="0 0 24 24" width="9" height="9" fill="#f59e0b"><circle cx="12" cy="12" r="12"/></svg>';
-                document.getElementById('espIP').style.color = '#f59e0b';
+                    '<svg viewBox="0 0 24 24" width="9" height="9" fill="#fbbf24"><circle cx="12" cy="12" r="12"/></svg>';
+                document.getElementById('espIP').style.color = '#fbbf24';
             }
 
             // Conectar DIRECTO a la IP del ESP32
@@ -140,9 +138,9 @@
                     const ping  = await API.dispositivos.ping(_dispId);
                     const badge = document.getElementById('espBadge');
                     badge.innerHTML = ping.online
-                        ? '<svg viewBox="0 0 24 24" width="9" height="9" fill="#16a34a"><circle cx="12" cy="12" r="12"/></svg>'
-                        : '<svg viewBox="0 0 24 24" width="9" height="9" fill="#f59e0b"><circle cx="12" cy="12" r="12"/></svg>';
-                    document.getElementById('espIP').style.color = ping.online ? '#16a34a' : '#f59e0b';
+                        ? '<svg viewBox="0 0 24 24" width="9" height="9" fill="#4ade80"><circle cx="12" cy="12" r="12"/></svg>'
+                        : '<svg viewBox="0 0 24 24" width="9" height="9" fill="#fbbf24"><circle cx="12" cy="12" r="12"/></svg>';
+                    document.getElementById('espIP').style.color = ping.online ? '#4ade80' : '#fbbf24';
                 } catch {}
             }, 20000);
         }, 15000);
