@@ -5,10 +5,13 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Práctica — Sistema de Laboratorio</title>
     <link rel="stylesheet" href="assets/css/main.css">
+    <style>
+        @keyframes spin { to { transform: rotate(360deg) } }
+    </style>
 </head>
 <body style="display:flex;flex-direction:column;height:100vh;overflow:hidden">
 
-<nav class="navbar" style="height:42px">
+<nav class="navbar" id="navbar" style="height:42px;flex-shrink:0">
     <div class="navbar-brand" onclick="window.location.href='panel-profesor.html'" style="cursor:pointer;flex-shrink:0">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14" style="color:rgba(255,255,255,.7);flex-shrink:0"><polyline points="15 18 9 12 15 6"/></svg>
         <img src="assets/img/udemm_logo.png"
@@ -22,28 +25,51 @@
         <div id="espTitle" style="font-size:.88rem;font-weight:700;color:white;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;text-align:center">—</div>
         <div id="espMat" style="font-size:.65rem;color:rgba(255,255,255,.55);text-transform:uppercase;letter-spacing:.06em">—</div>
     </div>
+
+    <!-- Estado de carga / error en navbar -->
+    <div id="navEstado" style="flex-shrink:0;display:flex;align-items:center;gap:5px;padding:0 6px">
+        <svg id="navSpinner" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.6)" stroke-width="2" width="13" height="13"
+             style="animation:spin .9s linear infinite;flex-shrink:0">
+            <circle cx="12" cy="12" r="10" stroke-opacity=".3"/>
+            <path d="M12 2a10 10 0 0 1 10 10" stroke-linecap="round"/>
+        </svg>
+        <span id="navEstadoMsg" style="font-size:.7rem;color:rgba(255,255,255,.55)">Conectando...</span>
+        <span id="navError" title="" style="display:none;cursor:help;line-height:0" onclick="mostrarErrorDetalle()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="#fca5a5" stroke-width="2" width="14" height="14">
+                <circle cx="12" cy="12" r="10"/>
+                <line x1="12" y1="8" x2="12" y2="12"/>
+                <line x1="12" y1="16" x2="12.01" y2="16"/>
+            </svg>
+        </span>
+    </div>
+
     <div class="navbar-right">
         <span id="espBadge"><svg viewBox="0 0 24 24" width="9" height="9" fill="#4ade80"><circle cx="12" cy="12" r="12"/></svg></span>
         <span style="font-size:.75rem;font-family:monospace;color:#4ade80" id="espIP"></span>
         <button class="navbar-btn" onclick="recargar()" title="Recargar" style="padding:3px 8px">↻</button>
         <span class="navbar-user" id="nombreUsuario">—</span>
         <button class="navbar-btn" onclick="API.logout()">Salir</button>
+        <button class="navbar-btn" id="btnOcultarNav" onclick="toggleNavbar()" title="Ocultar barra" style="padding:3px 8px;opacity:.65">▲</button>
     </div>
 </nav>
 
-<div id="estadoCarga" class="empty-state" style="margin-top:60px">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="48" height="48"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-    <p>Conectando con el dispositivo...</p>
-</div>
+<!-- Botón flotante para restaurar navbar cuando está oculto -->
+<button id="btnRestaurarNav" onclick="toggleNavbar()"
+        title="Mostrar barra"
+        style="display:none;position:fixed;top:6px;right:10px;z-index:9999;
+               background:rgba(20,20,50,.82);border:1px solid rgba(255,255,255,.18);
+               color:rgba(255,255,255,.85);border-radius:6px;padding:3px 8px;
+               font-size:.75rem;cursor:pointer;backdrop-filter:blur(6px);line-height:1">
+    ▼
+</button>
 
 <div id="vistaPractica" style="display:none;flex:1;flex-direction:column;overflow:hidden">
-    <div class="esp-page" style="padding:0 6px 6px 6px">
-        <!-- Overlay de carga del iframe -->
+    <div id="contenedorFrame" style="flex:1;position:relative;padding:0 6px 6px 6px;overflow:hidden">
+        <!-- Overlay de carga / error del iframe -->
         <div id="iframeLoader" style="
             position:absolute; inset:0; display:flex; flex-direction:column;
             align-items:center; justify-content:center; gap:14px;
-            background:var(--gris-bg,#f4f6f9); z-index:10;
-            height:calc(100vh - 50px); margin-top:0;">
+            background:var(--gris-bg,#f4f6f9); z-index:10;">
             <svg viewBox="0 0 24 24" fill="none" stroke="#6366f1" stroke-width="1.5" width="40" height="40"
                  style="animation:spin .9s linear infinite">
                 <circle cx="12" cy="12" r="10" stroke-opacity=".25"/>
@@ -51,11 +77,10 @@
             </svg>
             <span style="font-size:.88rem;color:var(--gris-t,#64748b)" id="loaderMsg">Cargando interfaz del dispositivo...</span>
         </div>
-        <style>@keyframes spin{to{transform:rotate(360deg)}}</style>
 
-        <!-- iFrame apunta DIRECTAMENTE a la IP del ESP32, sin pasar por el proxy -->
+        <!-- iFrame apunta DIRECTAMENTE a la IP del ESP32 -->
         <iframe id="espFrame" class="esp-frame" src="" frameborder="0"
-                style="height:calc(100vh - 50px);opacity:0;transition:opacity .4s"
+                style="width:100%;height:100%;opacity:0;transition:opacity .4s"
                 onload="frameLoaded()"></iframe>
     </div>
 </div>
@@ -67,10 +92,46 @@
     const practicaId = new URLSearchParams(window.location.search).get('id');
     if (!practicaId) window.location.href = 'panel-profesor.html';
 
-    let _ip = null;
+    let _ip     = null;
     let _dispId = null;
+    let _errorMsg = null;
+
+    function setNavEstado(estado, msg) {
+        const spinner = document.getElementById('navSpinner');
+        const msgEl   = document.getElementById('navEstadoMsg');
+        const errorEl = document.getElementById('navError');
+        if (estado === 'cargando') {
+            spinner.style.display = '';
+            msgEl.style.display   = '';
+            errorEl.style.display = 'none';
+            msgEl.textContent     = msg || 'Conectando...';
+        } else if (estado === 'ok') {
+            spinner.style.display = 'none';
+            msgEl.style.display   = 'none';
+            errorEl.style.display = 'none';
+        } else if (estado === 'error') {
+            spinner.style.display = 'none';
+            msgEl.style.display   = 'none';
+            errorEl.style.display = '';
+            errorEl.title         = msg || 'Error desconocido';
+            _errorMsg             = msg;
+        }
+    }
+
+    function mostrarErrorDetalle() {
+        alert(_errorMsg || 'Error desconocido');
+    }
+
+    let navVisible = true;
+    function toggleNavbar() {
+        navVisible = !navVisible;
+        document.getElementById('navbar').style.display          = navVisible ? '' : 'none';
+        document.getElementById('btnRestaurarNav').style.display  = navVisible ? 'none' : '';
+        document.getElementById('contenedorFrame').style.paddingTop = navVisible ? '0' : '6px';
+    }
 
     async function cargarPractica() {
+        setNavEstado('cargando', 'Conectando...');
         try {
             const p = await API.practicas.obtener(practicaId);
 
@@ -86,32 +147,31 @@
             document.getElementById('espTitle').textContent = p.titulo || '';
             document.getElementById('espIP').textContent    = p.ip;
 
-            // Si la BD dice offline mostramos badge de advertencia pero cargamos
-            // el iframe igual — el ping puede fallar por lentitud del dispositivo
-            // aunque la página cargue bien. El monitoreo actualiza el badge.
             if (!p.online) {
                 document.getElementById('espBadge').innerHTML =
                     '<svg viewBox="0 0 24 24" width="9" height="9" fill="#fbbf24"><circle cx="12" cy="12" r="12"/></svg>';
                 document.getElementById('espIP').style.color = '#fbbf24';
             }
 
-            // Conectar DIRECTO a la IP del ESP32
             document.getElementById('espFrame').src = `http://${p.ip}/`;
-
-            document.getElementById('estadoCarga').style.display   = 'none';
             document.getElementById('vistaPractica').style.display = 'flex';
 
+            setNavEstado('ok');
             iniciarMonitoreo();
         } catch(e) {
             console.error('[practica.html] Error en cargarPractica:', e);
-            // Mostrar error en pantalla en lugar de redirigir para poder verlo
-            document.getElementById('estadoCarga').innerHTML = `
-                <div style="max-width:520px;text-align:left;padding:24px;background:#fff1f2;border:1.5px solid #fca5a5;border-radius:10px">
-                    <strong style="color:#b91c1c;font-size:1rem">⚠ Error al cargar la práctica</strong>
-                    <p style="margin:10px 0 6px;color:#374151;font-size:.9rem"><b>Mensaje:</b> ${e.message || '(sin mensaje)'}</p>
-                    <pre style="font-size:.75rem;background:#fee2e2;padding:10px;border-radius:6px;overflow:auto;color:#7f1d1d">${e.stack || '(sin stack)'}</pre>
-                    <a href="panel-profesor.html" style="display:inline-block;margin-top:12px;font-size:.85rem;color:#2563eb">← Volver a mis prácticas</a>
-                </div>`;
+            setNavEstado('error', e.message || 'Error desconocido');
+            document.getElementById('vistaPractica').style.display = 'flex';
+            document.getElementById('iframeLoader').innerHTML = `
+                <svg viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="1.5" width="40" height="40">
+                    <circle cx="12" cy="12" r="10"/>
+                    <line x1="12" y1="8" x2="12" y2="12"/>
+                    <line x1="12" y1="16" x2="12.01" y2="16"/>
+                </svg>
+                <span style="font-size:.9rem;color:#ef4444;font-weight:600">No se pudo cargar la práctica</span>
+                <span style="font-size:.8rem;color:#64748b;max-width:360px;text-align:center">${e.message || 'Error desconocido'}</span>
+                <a href="panel-profesor.html" style="font-size:.82rem;color:#2563eb;margin-top:4px">← Volver a mis prácticas</a>
+            `;
         }
     }
 
@@ -131,7 +191,6 @@
 
     let monitorInterval;
     function iniciarMonitoreo() {
-        // Esperar 15s antes del primer ping para no solapar con el ping reciente del panel.
         setTimeout(() => {
             monitorInterval = setInterval(async () => {
                 try {
